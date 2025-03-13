@@ -1,0 +1,179 @@
+import { useState, useEffect, useCallback } from 'react';
+
+import httpService from 'src/services/httpService';
+import { getRandomString } from 'src/utils/random-string';
+
+interface User {
+  _id: string;
+  name: string;
+  role: string;
+  email: string;
+  isVerified: boolean;
+  isAccountActive: boolean;
+  avatar: string;
+  batches: { title: string }[];
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface UsersResponse {
+  statusCode: number;
+  message: string;
+  data: {
+    users: User[];
+    total: number;
+  };
+}
+
+interface SearchUsersResponse {
+  statusCode: number;
+  message: string;
+  data: {
+    users: User[];
+  };
+}
+
+export const useUsers = (page: number = 0, limit: number = 25) => {
+  const [users, setUsers] = useState<User[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [addUserLoading, setAddUserLoading] = useState(false);
+  const [addUserError, setAddUserError] = useState<string | null>(null);
+  const [blockUserLoading, setBlockUserLoading] = useState(false);
+  const [blockUserError, setBlockUserError] = useState<string | null>(null);
+  const [resetHardwareLoading, setResetHardwareLoading] = useState(false);
+  const [resetHardwareError, setResetHardwareError] = useState<string | null>(null);
+  const [deleteUserLoading, setDeleteUserLoading] = useState(false);
+  const [deleteUserError, setDeleteUserError] = useState<string | null>(null);
+
+  const fetchUsers = useCallback(
+    async (currentPage: number = page) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await httpService.get<UsersResponse>(
+          `/users/admin/users?page=${currentPage + 1}&limit=${limit}`
+        );
+        setUsers(response.data.data.users);
+        setTotal(response.data.data.total);
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to fetch users');
+        setUsers([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [page, limit]
+  );
+
+  useEffect(() => {
+    fetchUsers();
+  }, [page, limit, fetchUsers]);
+
+  const addUser = async (data: { name: string; email: string }) => {
+    setAddUserLoading(true);
+    setAddUserError(null);
+    const password = getRandomString(10);
+    try {
+      const response = await httpService.post('/auth/signup', { ...data, password });
+      const newUser = (response.data as { data: User }).data;
+      setUsers((prevUsers) => [...prevUsers, newUser]);
+    } catch (err) {
+      setAddUserError(err.response?.data?.message || 'Failed to add user');
+    } finally {
+      setAddUserLoading(false);
+    }
+  };
+
+  const blockUser = async (userId: string) => {
+    setBlockUserLoading(true);
+    setBlockUserError(null);
+    try {
+      await httpService.patch(`/users/block/${userId}`, {});
+      setUsers((prevUsers) =>
+        prevUsers.map((user) =>
+          user._id === userId ? { ...user, isAccountActive: false, status: 'Blocked' } : user
+        )
+      );
+    } catch (err) {
+      setBlockUserError(err.response?.data?.message || 'Failed to block user');
+    } finally {
+      setBlockUserLoading(false);
+    }
+  };
+
+  const unblockUser = async (userId: string) => {
+    setBlockUserLoading(true);
+    setBlockUserError(null);
+    try {
+      await httpService.patch(`/users/unblock/${userId}`, {});
+      setUsers((prevUsers) =>
+        prevUsers.map((user) =>
+          user._id === userId ? { ...user, isAccountActive: true, status: 'Active' } : user
+        )
+      );
+    } catch (err) {
+      setBlockUserError(err.response?.data?.message || 'Failed to unblock user');
+    } finally {
+      setBlockUserLoading(false);
+    }
+  };
+
+  const resetHardwareIds = async (userId: string, data: any) => {
+    setResetHardwareLoading(true);
+    setResetHardwareError(null);
+    try {
+      await httpService.patch(`/users/reset-hardware-ids/${userId}`, data);
+    } catch (err) {
+      setResetHardwareError(err.response?.data?.message || 'Failed to reset hardware IDs');
+    } finally {
+      setResetHardwareLoading(false);
+    }
+  };
+
+  const deleteUser = async (userId: string) => {
+    setDeleteUserLoading(true);
+    setDeleteUserError(null);
+    try {
+      await httpService.delete(`/users/${userId}`);
+      setUsers((prevUsers) => prevUsers.filter((user) => user._id !== userId));
+    } catch (err) {
+      setDeleteUserError(err.response?.data?.message || 'Failed to delete user');
+    } finally {
+      setDeleteUserLoading(false);
+    }
+  };
+
+  const searchUsers = async (query: string) => {
+    try {
+      const response = await httpService.get<SearchUsersResponse>(`/user/search?q=${query}`);
+      return response.data.data.users;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || 'Failed to search users');
+    }
+  };
+
+  return {
+    users,
+    total,
+    loading,
+    error,
+    addUser,
+    addUserLoading,
+    addUserError,
+    blockUser,
+    unblockUser,
+    blockUserLoading,
+    blockUserError,
+    resetHardwareIds,
+    resetHardwareLoading,
+    resetHardwareError,
+    deleteUser,
+    deleteUserLoading,
+    deleteUserError,
+    fetchUsers,
+    searchUsers,
+  };
+};
