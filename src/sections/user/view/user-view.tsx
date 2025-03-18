@@ -28,34 +28,153 @@ import { AddUserModal } from './AddUserModal';
 
 export function UserView() {
   const table = useTable();
-  const { users, total, loading, error, deleteUser } = useUsers(table.page, table.rowsPerPage);
+  const { 
+    users, 
+    total, 
+    loading, 
+    error, 
+    deleteUser, 
+    blockUser, 
+    unblockUser, 
+    resetHardwareIds,
+    blockUserLoading,
+    blockUserError,
+    resetHardwareError,
+    deleteUserError,
+    fetchUsers,
+    toggleIdVerification,
+    updateUser,
+    findStudentByEmail,
+    searchUsers,
+    setUsers,
+    setTotal,
+    setError,
+  } = useUsers(table.page, table.rowsPerPage);
 
   const [filterName, setFilterName] = useState('');
   const [openModal, setOpenModal] = useState(false);
+  const [updateUserLoading, setUpdateUserLoading] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   const handleOpenModal = () => setOpenModal(true);
   const handleCloseModal = () => setOpenModal(false);
 
+  const handleFilterName = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setFilterName(value);
+    table.onResetPage();
+
+    if (!value) {
+      await fetchUsers(table.page);
+      return;
+    }
+
+    // First check if we have a match in local users
+    const localMatch = users.find(user => 
+      user.email.toLowerCase().includes(value.toLowerCase())
+    );
+
+    if (localMatch) {
+      setSearchLoading(false);
+      setError(null);
+      return;
+    }
+
+    // If no local match and it's a complete email, try API
+    const isCompleteEmail = value.includes('@') && value.includes('.');
+    
+    if (isCompleteEmail) {
+      setSearchLoading(true);
+      try {
+        // Try to find the exact email
+        const student = await findStudentByEmail(value);
+        if (student) {
+          setUsers([student]);
+          setTotal(1);
+          setError(null);
+          return;
+        }
+      } catch (err) {
+        // If not found, continue with normal search
+      }
+
+      try {
+        const searchResults = await searchUsers(value);
+        setUsers(searchResults);
+        setTotal(searchResults.length);
+        setError(null);
+      } catch (err) {
+        setError(err.message);
+        setUsers([]);
+        setTotal(0);
+      } finally {
+        setSearchLoading(false);
+      }
+    } else {
+      // For incomplete email, just filter the existing users
+      setSearchLoading(false);
+      setError(null);
+    }
+  };
+
   const handleDeleteUser = async (userId: string) => {
     await deleteUser(userId);
+    await fetchUsers(table.page);
+  };
+
+  const handleBlockUser = async (userId: string) => {
+    await blockUser(userId);
+    await fetchUsers(table.page);
+  };
+
+  const handleUnblockUser = async (userId: string) => {
+    await unblockUser(userId);
+    await fetchUsers(table.page);
+  };
+
+  const handleResetHardwareIds = async (userId: string, data: any) => {
+    await resetHardwareIds(userId, data);
+    await fetchUsers(table.page);
+  };
+
+  const handleVerificationChange = async (userId: string, verified: boolean) => {
+    await toggleIdVerification(userId);
+    await fetchUsers(table.page);
+  };
+
+  const handleUpdateUser = async (userId: string, data: any) => {
+    setUpdateUserLoading(true);
+    try {
+      await updateUser(userId, data);
+    } finally {
+      setUpdateUserLoading(false);
+    }
   };
 
   const dataFiltered: UserProps[] = applyFilter({
     inputData: users.map((user) => ({
       ...user,
       id: user._id,
+      _id: user._id,
       email: user.email,
       role: user.role || '',
       batch: user.batches.map((batch) => batch.title).join(', '),
       status: user.isAccountActive ? 'Active' : 'Blocked',
       avatarUrl: user.avatar || '',
       company: user.email || '',
+      fatherName: user.fatherName || '',
+      gender: user.gender || '',
+      phoneNumber: user.phoneNumber || '',
+      whatsapp: user.whatsapp || '',
+      rollNo: user.rollNo || '',
+      facebookProfileUrl: user.facebookProfileUrl || '',
+      address: user.address || '',
     })),
     comparator: getComparator(table.order, table.orderBy),
     filterName,
   });
 
-  const notFound = !dataFiltered.length && !!filterName;
+  const notFound = !dataFiltered.length && !!filterName && !searchLoading;
 
   return (
     <DashboardContent>
@@ -69,7 +188,7 @@ export function UserView() {
           startIcon={<Iconify icon="mingcute:add-line" />}
           onClick={handleOpenModal}
         >
-          New user
+          New Users
         </Button>
       </Box>
 
@@ -77,10 +196,8 @@ export function UserView() {
         <UserTableToolbar
           numSelected={table.selected.length}
           filterName={filterName}
-          onFilterName={(event: React.ChangeEvent<HTMLInputElement>) => {
-            setFilterName(event.target.value);
-            table.onResetPage();
-          }}
+          onFilterName={handleFilterName}
+          searchLoading={searchLoading}
         />
 
         <Scrollbar>
@@ -113,25 +230,25 @@ export function UserView() {
                   ]}
                 />
                 <TableBody>
-                  {dataFiltered
-                    .slice(
-                      table.page * table.rowsPerPage,
-                      table.page * table.rowsPerPage + table.rowsPerPage
-                    )
-                    .map((row) => (
-                      <UserTableRow
-                        key={row.id}
-                        row={row}
-                        selected={table.selected.includes(row.id)}
-                        onSelectRow={() => table.onSelectRow(row.id)}
-                        onDeleteUser={handleDeleteUser}
-                      />
-                    ))}
-
-                  <TableEmptyRows
-                    height={68}
-                    emptyRows={emptyRows(table.page, table.rowsPerPage, users.length)}
-                  />
+                  {dataFiltered.map((row) => (
+                    <UserTableRow
+                      key={row.id}
+                      row={row}
+                      selected={table.selected.includes(row.id)}
+                      onSelectRow={() => table.onSelectRow(row.id)}
+                      onDeleteUser={handleDeleteUser}
+                      onBlockUser={handleBlockUser}
+                      onUnblockUser={handleUnblockUser}
+                      onResetHardwareIds={handleResetHardwareIds}
+                      onVerificationChange={handleVerificationChange}
+                      onUpdateUser={handleUpdateUser}
+                      blockUserLoading={blockUserLoading}
+                      blockUserError={blockUserError}
+                      resetHardwareError={resetHardwareError}
+                      deleteUserError={deleteUserError}
+                      updateUserLoading={updateUserLoading}
+                    />
+                  ))}
 
                   {notFound && <TableNoData searchQuery={filterName} />}
                 </TableBody>

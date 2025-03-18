@@ -14,19 +14,28 @@ import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
-import { useUsers } from 'src/hooks/use-users';
+import { ViewCnicModal } from './view/ViewCnicModal';
+import { EditUserModal } from './view/EditUserModal';
 
 // ----------------------------------------------------------------------
 
 export type UserProps = {
   id: string;
+  _id: string;
   name: string;
   role: string;
   status: string;
   email: string;
   avatarUrl: string;
-  isVerified: boolean;
+  idVerified: boolean;
   batch: string;
+  fatherName: string;
+  gender: string;
+  phoneNumber: string;
+  whatsapp: string;
+  rollNo: string;
+  facebookProfileUrl: string;
+  address: string;
 };
 
 type UserTableRowProps = {
@@ -34,25 +43,41 @@ type UserTableRowProps = {
   selected: boolean;
   onSelectRow: () => void;
   onDeleteUser: (userId: string) => void;
+  onBlockUser: (userId: string) => Promise<void>;
+  onUnblockUser: (userId: string) => Promise<void>;
+  onResetHardwareIds: (userId: string, data: any) => Promise<void>;
+  onVerificationChange: (userId: string, verified: boolean) => void;
+  onUpdateUser: (userId: string, data: any) => Promise<void>;
+  blockUserLoading: boolean;
+  blockUserError: string | null;
+  resetHardwareError: string | null;
+  deleteUserError: string | null;
+  updateUserLoading: boolean;
 };
 
-export function UserTableRow({ row, selected, onSelectRow, onDeleteUser }: UserTableRowProps) {
-  const {
-    blockUser,
-    unblockUser,
-    blockUserLoading,
-    blockUserError,
-    resetHardwareIds,
-    resetHardwareLoading,
-    resetHardwareError,
-    deleteUserLoading,
-    deleteUserError,
-  } = useUsers(0, 25);
+export function UserTableRow({ 
+  row, 
+  selected, 
+  onSelectRow, 
+  onDeleteUser,
+  onBlockUser,
+  onUnblockUser,
+  onResetHardwareIds,
+  onVerificationChange,
+  onUpdateUser,
+  blockUserLoading,
+  blockUserError,
+  resetHardwareError,
+  deleteUserError,
+  updateUserLoading,
+}: UserTableRowProps) {
   const [openPopover, setOpenPopover] = useState<HTMLButtonElement | null>(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
   const [userStatus, setUserStatus] = useState(row.status);
+  const [openCnicModal, setOpenCnicModal] = useState(false);
+  const [openEditModal, setOpenEditModal] = useState(false);
 
   const handleOpenPopover = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     setOpenPopover(event.currentTarget);
@@ -64,7 +89,7 @@ export function UserTableRow({ row, selected, onSelectRow, onDeleteUser }: UserT
 
   const handleBlockUser = async () => {
     if (userStatus === 'Blocked') {
-      await unblockUser(row.id);
+      await onUnblockUser(row.id);
       if (blockUserError) {
         setSnackbarMessage(blockUserError);
         setSnackbarSeverity('error');
@@ -74,7 +99,7 @@ export function UserTableRow({ row, selected, onSelectRow, onDeleteUser }: UserT
         setUserStatus('Active');
       }
     } else {
-      await blockUser(row.id);
+      await onBlockUser(row.id);
       if (blockUserError) {
         setSnackbarMessage(blockUserError);
         setSnackbarSeverity('error');
@@ -89,7 +114,7 @@ export function UserTableRow({ row, selected, onSelectRow, onDeleteUser }: UserT
   };
 
   const handleResetHardwareIds = async (data: any) => {
-    await resetHardwareIds(row.id, data);
+    await onResetHardwareIds(row.id, data);
     if (resetHardwareError) {
       setSnackbarMessage(resetHardwareError);
       setSnackbarSeverity('error');
@@ -118,6 +143,18 @@ export function UserTableRow({ row, selected, onSelectRow, onDeleteUser }: UserT
     setSnackbarOpen(false);
   };
 
+  const handleUpdateUser = async (data: any) => {
+    try {
+      await onUpdateUser(row.id, data);
+      setSnackbarMessage('User updated successfully');
+      setSnackbarSeverity('success');
+    } catch (error) {
+      setSnackbarMessage('Failed to update user');
+      setSnackbarSeverity('error');
+    }
+    setSnackbarOpen(true);
+  };
+
   return (
     <>
       <TableRow hover tabIndex={-1} role="checkbox" selected={selected}>
@@ -137,10 +174,10 @@ export function UserTableRow({ row, selected, onSelectRow, onDeleteUser }: UserT
         <TableCell>{row.batch && row.batch.trim() !== '' ? row.batch : '--'}</TableCell>
 
         <TableCell align="center">
-          {row.isVerified ? (
+          {row.idVerified ? (
             <Iconify width={22} icon="solar:check-circle-bold" sx={{ color: 'success.main' }} />
           ) : (
-            '-'
+            <Iconify width={22} icon="solar:close-circle-bold" sx={{ color: 'error.main' }} />
           )}
         </TableCell>
 
@@ -178,9 +215,20 @@ export function UserTableRow({ row, selected, onSelectRow, onDeleteUser }: UserT
             },
           }}
         >
-          <MenuItem onClick={handleClosePopover}>
+          <MenuItem onClick={() => {
+            setOpenEditModal(true);
+            handleClosePopover();
+          }}>
             <Iconify icon="eva:edit-2-fill" />
             Edit
+          </MenuItem>
+
+          <MenuItem onClick={() => {
+            setOpenCnicModal(true);
+            handleClosePopover();
+          }}>
+            <Iconify icon="mdi:id-card" />
+            View CNIC
           </MenuItem>
 
           <MenuItem onClick={handleDeleteUser} sx={{ color: 'error.main' }}>
@@ -240,6 +288,24 @@ export function UserTableRow({ row, selected, onSelectRow, onDeleteUser }: UserT
           {snackbarMessage}
         </Alert>
       </Snackbar>
+
+      <ViewCnicModal
+        open={openCnicModal}
+        onClose={() => setOpenCnicModal(false)}
+        userId={row.id}
+        idVerified={row.idVerified}
+        onVerificationChange={(verified) => {
+          onVerificationChange(row.id, verified);
+        }}
+      />
+
+      <EditUserModal
+        open={openEditModal}
+        onClose={() => setOpenEditModal(false)}
+        user={row}
+        onUpdate={handleUpdateUser}
+        loading={updateUserLoading}
+      />
     </>
   );
 }

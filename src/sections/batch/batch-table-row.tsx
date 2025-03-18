@@ -44,7 +44,6 @@ type BatchTableRowProps = {
   onEnrollStudents: (batchId: string, emails: string[]) => Promise<void>;
   onAssignCourses: (batchId: string, courseId: string) => Promise<void>;
   onRemoveStudent: (batchId: string, email: string) => Promise<void>;
-  searchEmail: (query: string) => Promise<{ email: string }[]>;
 };
 
 export default function BatchTableRow({
@@ -56,7 +55,6 @@ export default function BatchTableRow({
   onEnrollStudents,
   onAssignCourses,
   onRemoveStudent,
-  searchEmail,
 }: BatchTableRowProps) {
   const { id, title, description, students, courses, createdAt } = row;
 
@@ -311,7 +309,6 @@ export default function BatchTableRow({
         onSubmit={handleEnrollStudents}
         loading={enrollLoading}
         error={enrollError}
-        searchEmail={searchEmail}
       />
 
       <AssignCoursesModal

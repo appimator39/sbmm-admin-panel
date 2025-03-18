@@ -216,7 +216,6 @@ export function BatchView() {
                         onEnrollStudents={handleEnrollStudents}
                         onAssignCourses={handleAssignCourses}
                         onRemoveStudent={handleRemoveStudent}
-                        searchEmail={handleSearchEmail}
                       />
                     ))}
 

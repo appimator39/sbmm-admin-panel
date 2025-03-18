@@ -1,19 +1,18 @@
 import { useState } from 'react';
+import * as XLSX from 'xlsx';
 
 import {
   Box,
   Alert,
   Dialog,
   Button,
-  Checkbox,
   TextField,
   IconButton,
   DialogTitle,
-  Autocomplete,
   DialogContent,
   DialogActions,
   CircularProgress,
-  FormControlLabel,
+  Typography,
 } from '@mui/material';
 import { Iconify } from 'src/components/iconify';
 
@@ -23,7 +22,6 @@ interface EnrollStudentsModalProps {
   onSubmit: (data: { emails: string[] }) => Promise<void>;
   loading: boolean;
   error: string | null;
-  searchEmail: (query: string) => Promise<{ email: string }[]>;
 }
 
 export function EnrollStudentsModal({
@@ -32,40 +30,51 @@ export function EnrollStudentsModal({
   onSubmit,
   loading,
   error,
-  searchEmail,
 }: EnrollStudentsModalProps) {
-  const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
-  const [bulkMode, setBulkMode] = useState(false);
   const [bulkEmails, setBulkEmails] = useState('');
-  const [emailOptions, setEmailOptions] = useState<{ email: string }[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const handleEmailSearch = async (query: string) => {
-    if (!query || query.length < 2) return;
-    setSearchLoading(true);
-    try {
-      const results = await searchEmail(query);
-      setEmailOptions(results);
-    } catch (err) {
-      console.error('Error searching emails:', err);
-    } finally {
-      setSearchLoading(false);
-    }
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setFileError(null);
+    const reader = new FileReader();
+    reader.readAsBinaryString(file);
+
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: "binary" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const parsedData = XLSX.utils.sheet_to_json(sheet);
+
+        // Extract emails from the Excel file
+        const emails = parsedData
+          .map((row: any) => row["Personal Email"] || row.Email || row.email)
+          .filter((email: string) => email && email.includes('@'));
+
+        if (emails.length === 0) {
+          setFileError('No valid email addresses found in the Excel file.');
+          return;
+        }
+
+        setBulkEmails(emails.join(', '));
+      } catch (err) {
+        setFileError('Error processing the Excel file. Please check the file format.');
+        console.error('Error processing Excel file:', err);
+      }
+    };
   };
 
   const handleSubmit = async () => {
     setSuccessMessage(null);
-    let emails: string[] = [];
-
-    if (bulkMode) {
-      emails = bulkEmails
-        .split(',')
-        .map((email) => email.trim())
-        .filter((email) => email.length > 0);
-    } else if (selectedEmail) {
-      emails = [selectedEmail];
-    }
+    const emails = bulkEmails
+      .split(',')
+      .map((email) => email.trim())
+      .filter((email) => email.length > 0);
 
     if (emails.length === 0) return;
 
@@ -73,15 +82,12 @@ export function EnrollStudentsModal({
       await onSubmit({ emails });
       if (!error) {
         setSuccessMessage('Students enrolled successfully!');
-        setSelectedEmail(null);
         setBulkEmails('');
       }
     } catch (err) {
       setSuccessMessage(null);
     }
   };
-
-  const isSubmitDisabled = bulkMode ? !bulkEmails.trim() : !selectedEmail;
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
@@ -101,52 +107,43 @@ export function EnrollStudentsModal({
         </IconButton>
       </DialogTitle>
       <DialogContent>
-        <Box sx={{ mt: 1 }}>
-          <FormControlLabel
-            control={
-              <Checkbox checked={bulkMode} onChange={(e) => setBulkMode(e.target.checked)} />
-            }
-            label="Bulk Enroll"
+        <Box sx={{ mt: 2 }}>
+          <input
+            accept=".xlsx,.xls"
+            style={{ display: 'none' }}
+            id="excel-file-upload"
+            type="file"
+            onChange={handleFileUpload}
           />
+          <Button
+            component="label"
+            htmlFor="excel-file-upload"
+            variant="outlined"
+            startIcon={<Iconify icon="mdi:file-excel" />}
+            sx={{ mb: 2 }}
+          >
+            Upload Excel File
+          </Button>
 
-          {bulkMode ? (
-            <TextField
-              fullWidth
-              label="Paste emails (comma separated)"
-              multiline
-              rows={4}
-              value={bulkEmails}
-              onChange={(e) => setBulkEmails(e.target.value)}
-              placeholder="email1@example.com, email2@example.com, ..."
-              sx={{ mt: 2 }}
-            />
-          ) : (
-            <Autocomplete
-              fullWidth
-              value={selectedEmail ? { email: selectedEmail } : null}
-              onChange={(_, newValue) => setSelectedEmail(newValue?.email || null)}
-              options={emailOptions}
-              getOptionLabel={(option) => option.email}
-              loading={searchLoading}
-              onInputChange={(_, value) => handleEmailSearch(value)}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Search student email"
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {searchLoading ? <CircularProgress size={20} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  }}
-                />
-              )}
-              sx={{ mt: 2 }}
-            />
+          {fileError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {fileError}
+            </Alert>
           )}
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Or paste emails manually (comma separated):
+          </Typography>
+
+          <TextField
+            fullWidth
+            label="Paste emails (comma separated)"
+            multiline
+            rows={4}
+            value={bulkEmails}
+            onChange={(e) => setBulkEmails(e.target.value)}
+            placeholder="email1@example.com, email2@example.com, ..."
+          />
 
           {error && (
             <Alert severity="error" sx={{ mt: 2 }}>
@@ -168,7 +165,7 @@ export function EnrollStudentsModal({
           onClick={handleSubmit}
           color="primary"
           variant="contained"
-          disabled={loading || isSubmitDisabled}
+          disabled={loading || !bulkEmails.trim()}
           startIcon={loading && <CircularProgress size={20} />}
         >
           Enroll

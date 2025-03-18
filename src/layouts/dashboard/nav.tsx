@@ -43,7 +43,6 @@ export function NavDesktop({
   return (
     <Box
       sx={{
-        pt: 2.5,
         px: 2.5,
         top: 0,
         left: 0,
@@ -90,7 +89,6 @@ export function NavMobile({
       onClose={onClose}
       sx={{
         [`& .${drawerClasses.paper}`]: {
-          pt: 2.5,
           px: 2.5,
           overflow: 'unset',
           bgcolor: 'var(--layout-nav-bg)',

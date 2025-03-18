@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 
+import Box from '@mui/material/Box';
 import { useTheme } from '@mui/material/styles';
 
 import type { BoxProps } from '@mui/material/Box';
@@ -14,45 +15,43 @@ export type LogoProps = BoxProps & {
 
 export const Logo = forwardRef<HTMLDivElement, LogoProps>(
   (
-    { width, href = '/', height, isSingle = true, disableLink = false, className, sx, ...other },
+    { width = 160, height = 160, href = '/', disableLink = false, className, sx, ...other },
     ref
   ) => {
     const theme = useTheme();
 
-    /*
-    * OR using local (public folder)
-    *
-    const singleLogo = (
+    const logo = (
       <Box
-        alt="Single logo"
+        alt="SBMM Logo"
         component="img"
-        src={`/logo/logo-single.svg`}
-        width="100%"
-        height="100%"
+        src="/assets/images/main_logo.png"
+        width={width}
+        height={height}
+        sx={{ objectFit: 'contain', ...sx }}
+        {...other}
       />
     );
 
-    const fullLogo = (
+    if (disableLink) {
+      return logo;
+    }
+
+    return (
       <Box
-        alt="Full logo"
-        component="img"
-        src={`/logo/logo-full.svg`}
-        width="100%"
-        height="100%"
-      />
+        ref={ref}
+        component="a"
+        href={href}
+        className={className}
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          ...sx,
+        }}
+        {...other}
+      >
+        {logo}
+      </Box>
     );
-    *
-    */
-
-    const baseSize = {
-      width: width ?? 40,
-      height: height ?? 40,
-      ...(!isSingle && {
-        width: width ?? 102,
-        height: height ?? 36,
-      }),
-    };
-
-    return <></>;
   }
 );

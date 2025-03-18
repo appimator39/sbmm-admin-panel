@@ -17,7 +17,8 @@ export const visuallyHidden = {
 // ----------------------------------------------------------------------
 
 export function emptyRows(page: number, rowsPerPage: number, arrayLength: number) {
-  return page ? Math.max(0, (1 + page) * rowsPerPage - arrayLength) : 0;
+  // Since we're using server-side pagination, we don't need to show empty rows
+  return 0;
 }
 
 // ----------------------------------------------------------------------
@@ -71,7 +72,7 @@ export function applyFilter({ inputData, comparator, filterName }: ApplyFilterPr
 
   if (filterName) {
     inputData = inputData.filter(
-      (user) => user.name.toLowerCase().indexOf(filterName.toLowerCase()) !== -1
+      (user) => user.email.toLowerCase().indexOf(filterName.toLowerCase()) !== -1
     );
   }
 

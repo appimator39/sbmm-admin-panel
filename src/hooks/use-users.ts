@@ -9,12 +9,28 @@ interface User {
   role: string;
   email: string;
   isVerified: boolean;
+  idVerified: boolean;
   isAccountActive: boolean;
   avatar: string;
   batches: { title: string }[];
   status: string;
   createdAt: string;
   updatedAt: string;
+  fatherName: string;
+  gender: string;
+  phoneNumber: string;
+  whatsapp: string;
+  rollNo: string;
+  facebookProfileUrl: string;
+  address: string;
+  hardwareIdWindows: string | null;
+  hardwareIdAndroid: string | null;
+  hardwareIdMac: string | null;
+  hardwareIdIOS: string | null;
+  cnicBackImage: string | null;
+  cnicFrontImage: string | null;
+  backCNICURL: string | null;
+  frontCNICURL: string | null;
 }
 
 interface UsersResponse {
@@ -56,6 +72,7 @@ export const useUsers = (page: number = 0, limit: number = 25) => {
         const response = await httpService.get<UsersResponse>(
           `/users/admin/users?page=${currentPage + 1}&limit=${limit}`
         );
+        console.log('useUsers fetchUsers response:', response.data.data.users.map(user => ({ id: user._id, isVerified: user.isVerified })));
         setUsers(response.data.data.users);
         setTotal(response.data.data.total);
       } catch (err) {
@@ -155,6 +172,41 @@ export const useUsers = (page: number = 0, limit: number = 25) => {
     }
   };
 
+  const findStudentByEmail = async (email: string) => {
+    try {
+      const response = await httpService.get<{ data: User }>(`/users/admin/find-student?email=${encodeURIComponent(email)}`);
+      return response.data.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || 'Failed to find student');
+    }
+  };
+
+  const toggleIdVerification = async (userId: string) => {
+    try {
+      await httpService.patch(`/users/admin/toggle-id-verification/${userId}`, {});
+      setUsers((prevUsers) =>
+        prevUsers.map((user) =>
+          user._id === userId ? { ...user, isVerified: !user.isVerified } : user
+        )
+      );
+    } catch (err) {
+      throw new Error(err.response?.data?.message || 'Failed to toggle ID verification');
+    }
+  };
+
+  const updateUser = async (userId: string, data: any) => {
+    try {
+      await httpService.put(`/users/update/${userId}`, data);
+      setUsers((prevUsers) =>
+        prevUsers.map((user) =>
+          user._id === userId ? { ...user, ...data } : user
+        )
+      );
+    } catch (err) {
+      throw new Error(err.response?.data?.message || 'Failed to update user');
+    }
+  };
+
   return {
     users,
     total,
@@ -175,5 +227,11 @@ export const useUsers = (page: number = 0, limit: number = 25) => {
     deleteUserError,
     fetchUsers,
     searchUsers,
+    findStudentByEmail,
+    toggleIdVerification,
+    updateUser,
+    setUsers,
+    setTotal,
+    setError,
   };
 };

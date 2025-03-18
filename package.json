@@ -48,7 +48,8 @@
     "react-redux": "^9.2.0",
     "react-router-dom": "^6.26.1",
     "simplebar-react": "^3.2.6",
-    "use-http": "^1.0.28"
+    "use-http": "^1.0.28",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^22.5.0",

@@ -5,16 +5,16 @@ import { BASE_URL } from 'src/utils/url';
 import type { AxiosResponse, AxiosRequestConfig } from 'axios';
 
 const axiosInstance = axios.create({
-  baseURL: BASE_URL, // Replace with your API base URL
+  baseURL: BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
-  },
+    'Content-Type': 'application/json'
+  }
 });
 
 // Add a request interceptor to include the JWT token in the headers
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token'); // Adjust this to your token storage method
+    const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
