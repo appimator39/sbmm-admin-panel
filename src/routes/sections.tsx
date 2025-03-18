@@ -7,6 +7,7 @@ import { AuthLayout } from 'src/layouts/auth';
 import { DashboardLayout } from 'src/layouts/dashboard';
 import { ChapterView } from 'src/sections/chapter/view/chapter-view';
 import { varAlpha } from 'src/theme/styles';
+import AppLaunchesView from 'src/sections/app-launches/view/AppLaunchesView';
 
 // ----------------------------------------------------------------------
 
@@ -48,6 +49,7 @@ export function Router() {
         { path: 'products', element: <ProductsPage /> },
         { path: 'blog', element: <CoursesView /> },
         { path: 'chapters', element: <ChapterView /> },
+        { path: 'app-launches', element: <AppLaunchesView /> },
       ],
     },
     {

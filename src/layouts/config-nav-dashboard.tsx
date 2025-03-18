@@ -32,4 +32,9 @@ export const navData = [
     path: '/chapters',
     icon: icon('ic-content'),
   },
+  {
+    title: 'App Launches',
+    path: '/app-launches',
+    icon: icon('ic-rocket'),
+  },
 ];

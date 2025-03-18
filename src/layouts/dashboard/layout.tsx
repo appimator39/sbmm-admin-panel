@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button } from '@mui/material';
 
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -9,10 +11,7 @@ import { Iconify } from 'src/components/iconify';
 import type { Theme, SxProps, Breakpoint } from '@mui/material/styles';
 
 import { layoutClasses } from '../classes';
-import { AccountPopover } from '../components/account-popover';
 import { MenuButton } from '../components/menu-button';
-import { NotificationsPopover } from '../components/notifications-popover';
-import { Searchbar } from '../components/searchbar';
 import { navData } from '../config-nav-dashboard';
 import { HeaderSection } from '../core/header-section';
 import { LayoutSection } from '../core/layout-section';
@@ -31,10 +30,32 @@ export type DashboardLayoutProps = {
 
 export function DashboardLayout({ sx, children, header }: DashboardLayoutProps) {
   const theme = useTheme();
+  const navigate = useNavigate();
 
   const [navOpen, setNavOpen] = useState(false);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
 
   const layoutQuery: Breakpoint = 'lg';
+
+  const handleLogoutClick = () => {
+    setLogoutDialogOpen(true);
+  };
+
+  const handleLogoutConfirm = () => {
+    // Clear all storage
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    // Close the dialog
+    setLogoutDialogOpen(false);
+    
+    // Navigate to sign-in
+    navigate('/sign-in', { replace: true });
+  };
+
+  const handleLogoutCancel = () => {
+    setLogoutDialogOpen(false);
+  };
 
   return (
     <LayoutSection
@@ -71,27 +92,31 @@ export function DashboardLayout({ sx, children, header }: DashboardLayoutProps) 
             ),
             rightArea: (
               <Box gap={1} display="flex" alignItems="center">
-                <Searchbar />
-                <NotificationsPopover data={_notifications} />
-                <AccountPopover
-                  data={[
-                    {
-                      label: 'Home',
-                      href: '/',
-                      icon: <Iconify width={22} icon="solar:home-angle-bold-duotone" />,
-                    },
-                    {
-                      label: 'Profile',
-                      href: '#',
-                      icon: <Iconify width={22} icon="solar:shield-keyhole-bold-duotone" />,
-                    },
-                    {
-                      label: 'Settings',
-                      href: '#',
-                      icon: <Iconify width={22} icon="solar:settings-bold-duotone" />,
-                    },
-                  ]}
-                />
+                <Button variant="text" color="inherit" onClick={handleLogoutClick}>
+                  Logout
+                </Button>
+
+                <Dialog
+                  open={logoutDialogOpen}
+                  onClose={handleLogoutCancel}
+                  aria-labelledby="logout-dialog-title"
+                  aria-describedby="logout-dialog-description"
+                >
+                  <DialogTitle id="logout-dialog-title">Confirm Logout</DialogTitle>
+                  <DialogContent>
+                    <DialogContentText id="logout-dialog-description">
+                      Are you sure you want to logout?
+                    </DialogContentText>
+                  </DialogContent>
+                  <DialogActions>
+                    <Button onClick={handleLogoutCancel} color="primary">
+                      Cancel
+                    </Button>
+                    <Button onClick={handleLogoutConfirm} color="primary" autoFocus>
+                      Logout
+                    </Button>
+                  </DialogActions>
+                </Dialog>
               </Box>
             ),
           }}
