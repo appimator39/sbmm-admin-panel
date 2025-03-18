@@ -268,7 +268,11 @@ export function UserView() {
         />
       </Card>
 
-      <AddUserModal open={openModal} onClose={handleCloseModal} />
+      <AddUserModal 
+        open={openModal} 
+        onClose={handleCloseModal} 
+        onUsersAdded={() => fetchUsers(table.page)}
+      />
     </DashboardContent>
   );
 }

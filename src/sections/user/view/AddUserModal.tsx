@@ -30,6 +30,7 @@ import { getRandomString } from 'src/utils/random-string';
 interface AddUserModalProps {
   open: boolean;
   onClose: () => void;
+  onUsersAdded?: () => void;
 }
 
 interface UserFormData {
@@ -52,8 +53,8 @@ interface BulkUploadProgress {
   currentUser: string;
 }
 
-export function AddUserModal({ open, onClose }: AddUserModalProps) {
-  const { addUser, addUserLoading, addUserError } = useUsers(0, 25);
+export function AddUserModal({ open, onClose, onUsersAdded }: AddUserModalProps) {
+  const { addUser, addUserLoading, addUserError, fetchUsers } = useUsers(0, 25);
   const [isBulkUpload, setIsBulkUpload] = useState(false);
   const [bulkData, setBulkData] = useState<UserFormData[]>([]);
   const [uploadProgress, setUploadProgress] = useState<BulkUploadProgress | null>(null);
@@ -65,7 +66,19 @@ export function AddUserModal({ open, onClose }: AddUserModalProps) {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<UserFormData>();
+  } = useForm<UserFormData>({
+    defaultValues: {
+      name: '',
+      email: '',
+      fatherName: '',
+      gender: 'MALE',
+      phoneNumber: '',
+      whatsapp: '',
+      facebookProfileUrl: '',
+      address: '',
+      rollNo: '',
+    },
+  });
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -187,10 +200,17 @@ export function AddUserModal({ open, onClose }: AddUserModalProps) {
   const onSubmit = async (data: UserFormData) => {
     setSuccessMessage(null);
     try {
-      await addUser(data);
+      // Generate a random password for single user registration
+      const userData = {
+        ...data,
+        password: getRandomString(10),
+      };
+      await addUser(userData);
       if (!addUserError) {
         setSuccessMessage('User added successfully!');
         reset();
+        onUsersAdded?.(); // Call the callback
+        await fetchUsers(0); // Refetch the data
         onClose();
       }
     } catch (err) {
@@ -256,6 +276,8 @@ export function AddUserModal({ open, onClose }: AddUserModalProps) {
           setSuccessMessage(`Successfully registered ${finalProgress.completed} users!`);
           setBulkData([]);
           setIsBulkUpload(false);
+          onUsersAdded?.(); // Call the callback
+          await fetchUsers(0); // Refetch the data
           if (onClose) onClose();
         } else {
           setSuccessMessage(`Registration completed with ${finalProgress.failed} failures out of ${bulkData.length} users.`);
@@ -391,26 +413,6 @@ export function AddUserModal({ open, onClose }: AddUserModalProps) {
                 })}
                 error={!!errors.email}
                 helperText={errors.email?.message}
-              />
-
-              <TextField
-                fullWidth
-                label="Password"
-                type="password"
-                margin="normal"
-                {...register('password', {
-                  required: 'Password is required',
-                  minLength: {
-                    value: 8,
-                    message: 'Password must be at least 8 characters',
-                  },
-                  pattern: {
-                    value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-                    message: 'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character',
-                  },
-                })}
-                error={!!errors.password}
-                helperText={errors.password?.message}
               />
 
               <TextField
