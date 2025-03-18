@@ -78,12 +78,22 @@ export function NotificationCard() {
     setFetchLoading(true);
     try {
       const response = await httpService.get<ApiResponse>('/notifications');
-      setNotification(response.data.data);
-      setEditForm(response.data.data);
+      if (response.data?.data) {
+        setNotification(response.data.data);
+        setEditForm(response.data.data);
+      } else {
+        setNotification({ title: '', description: '' });
+        setEditForm({ title: '', description: '' });
+      }
     } catch (error) {
       const apiError = error as ApiError;
       console.error('Failed to fetch notification:', apiError);
-      showSnackbar(apiError.response?.data?.message || 'Failed to fetch notification', 'error');
+      if (apiError.response?.data?.message === 'Notification not found') {
+        setNotification({ title: '', description: '' });
+        setEditForm({ title: '', description: '' });
+      } else {
+        showSnackbar(apiError.response?.data?.message || 'Failed to fetch notification', 'error');
+      }
     } finally {
       setFetchLoading(false);
     }
@@ -101,10 +111,13 @@ export function NotificationCard() {
         description: editForm.description,
       };
       const response = await httpService.post<ApiResponse>('/notifications', payload);
-      setNotification(response.data.data);
-      setIsEditing(false);
-      showSnackbar('Notification updated successfully', 'success');
-      fetchNotification(); // Refresh the notification after saving
+      if (response.data?.data) {
+        setNotification(response.data.data);
+        setEditForm(response.data.data);
+        setIsEditing(false);
+        showSnackbar('Notification updated successfully', 'success');
+        fetchNotification(); // Refresh the notification after saving
+      }
     } catch (error) {
       const apiError = error as ApiError;
       console.error('Failed to update notification:', apiError);
@@ -136,25 +149,23 @@ export function NotificationCard() {
         <CardHeader
           title="Notification Board"
           action={
-            user?.role === 'admin' && (
-              <IconButton
-                onClick={() => setIsEditing(true)}
-                sx={{
-                  width: 40,
-                  height: 40,
-                  color: 'text.secondary',
-                  '&:hover': { bgcolor: 'action.hover' },
-                }}
-              >
-                <Iconify icon="solar:pen-bold" width={20} />
-              </IconButton>
-            )
+            <IconButton
+              onClick={() => setIsEditing(true)}
+              sx={{
+                width: 40,
+                height: 40,
+                color: 'text.secondary',
+                '&:hover': { bgcolor: 'action.hover' },
+              }}
+            >
+              <Iconify icon="solar:pen-bold" width={20} />
+            </IconButton>
           }
         />
 
         <CardContent>
           <Stack spacing={2}>
-            {notification.title ? (
+            {notification?.title ? (
               <>
                 <Typography variant="h6" color="primary">
                   {notification.title}
