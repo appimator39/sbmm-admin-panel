@@ -13,6 +13,7 @@ import {
   DialogActions,
   CircularProgress,
   Typography,
+  Stack,
 } from '@mui/material';
 import { Iconify } from 'src/components/iconify';
 
@@ -41,32 +42,65 @@ export function EnrollStudentsModal({
 
     setFileError(null);
     const reader = new FileReader();
-    reader.readAsBinaryString(file);
 
-    reader.onload = (e) => {
-      try {
-        const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: "binary" });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const parsedData = XLSX.utils.sheet_to_json(sheet);
+    if (file.name.toLowerCase().endsWith('.csv')) {
+      // Handle CSV file
+      reader.readAsText(file);
+      reader.onload = (e) => {
+        try {
+          const csvData = e.target?.result as string;
+          // Split by newlines and filter out empty lines
+          const rows = csvData.split('\n').filter(row => row.trim());
+          
+          // Process each row
+          const emails = rows.map(row => {
+            // Split by semicolon and get the email field (index 3)
+            const fields = row.split(';').map(field => 
+              // Remove quotes and trim
+              field.replace(/^"|"$/g, '').trim()
+            );
+            return fields[3] || ''; // Email is at index 3
+          }).filter(email => email && email.includes('@'));
 
-        // Extract emails from the Excel file
-        const emails = parsedData
-          .map((row: any) => row["Personal Email"] || row.Email || row.email)
-          .filter((email: string) => email && email.includes('@'));
+          if (emails.length === 0) {
+            setFileError('No valid email addresses found in the CSV file.');
+            return;
+          }
 
-        if (emails.length === 0) {
-          setFileError('No valid email addresses found in the Excel file.');
-          return;
+          setBulkEmails(emails.join(', '));
+        } catch (err) {
+          setFileError('Error processing the CSV file. Please check the file format.');
+          console.error('Error processing CSV file:', err);
         }
+      };
+    } else {
+      // Handle Excel file
+      reader.readAsBinaryString(file);
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result;
+          const workbook = XLSX.read(data, { type: "binary" });
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const parsedData = XLSX.utils.sheet_to_json(sheet);
 
-        setBulkEmails(emails.join(', '));
-      } catch (err) {
-        setFileError('Error processing the Excel file. Please check the file format.');
-        console.error('Error processing Excel file:', err);
-      }
-    };
+          // Extract emails from the Excel file
+          const emails = parsedData
+            .map((row: any) => row["Personal Email"] || row.Email || row.email)
+            .filter((email: string) => email && email.includes('@'));
+
+          if (emails.length === 0) {
+            setFileError('No valid email addresses found in the Excel file.');
+            return;
+          }
+
+          setBulkEmails(emails.join(', '));
+        } catch (err) {
+          setFileError('Error processing the Excel file. Please check the file format.');
+          console.error('Error processing Excel file:', err);
+        }
+      };
+    }
   };
 
   const handleSubmit = async () => {
@@ -108,22 +142,39 @@ export function EnrollStudentsModal({
       </DialogTitle>
       <DialogContent>
         <Box sx={{ mt: 2 }}>
-          <input
-            accept=".xlsx,.xls"
-            style={{ display: 'none' }}
-            id="excel-file-upload"
-            type="file"
-            onChange={handleFileUpload}
-          />
-          <Button
-            component="label"
-            htmlFor="excel-file-upload"
-            variant="outlined"
-            startIcon={<Iconify icon="mdi:file-excel" />}
-            sx={{ mb: 2 }}
-          >
-            Upload Excel File
-          </Button>
+          <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+            <input
+              accept=".xlsx,.xls"
+              style={{ display: 'none' }}
+              id="excel-file-upload"
+              type="file"
+              onChange={handleFileUpload}
+            />
+            <Button
+              component="label"
+              htmlFor="excel-file-upload"
+              variant="outlined"
+              startIcon={<Iconify icon="mdi:file-excel" />}
+            >
+              Upload Excel File
+            </Button>
+
+            <input
+              accept=".csv"
+              style={{ display: 'none' }}
+              id="csv-file-upload"
+              type="file"
+              onChange={handleFileUpload}
+            />
+            <Button
+              component="label"
+              htmlFor="csv-file-upload"
+              variant="outlined"
+              startIcon={<Iconify icon="mdi:file-delimited" />}
+            >
+              Upload CSV File
+            </Button>
+          </Stack>
 
           {fileError && (
             <Alert severity="error" sx={{ mb: 2 }}>

@@ -21,9 +21,11 @@ import {
   Checkbox,
   LinearProgress,
   Typography,
+  Stack,
 } from '@mui/material';
 import { Iconify } from 'src/components/iconify';
 import { useUsers } from 'src/hooks/use-users';
+import { getRandomString } from 'src/utils/random-string';
 
 interface AddUserModalProps {
   open: boolean;
@@ -40,6 +42,7 @@ interface UserFormData {
   whatsapp: string;
   facebookProfileUrl: string;
   address: string;
+  rollNo?: string;
 }
 
 interface BulkUploadProgress {
@@ -55,6 +58,7 @@ export function AddUserModal({ open, onClose }: AddUserModalProps) {
   const [bulkData, setBulkData] = useState<UserFormData[]>([]);
   const [uploadProgress, setUploadProgress] = useState<BulkUploadProgress | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [bulkUploadInProgress, setBulkUploadInProgress] = useState(false);
 
   const {
     register,
@@ -70,60 +74,114 @@ export function AddUserModal({ open, onClose }: AddUserModalProps) {
 
     setFileError(null);
     const reader = new FileReader();
-    reader.readAsBinaryString(file);
 
-    reader.onload = (e) => {
-      try {
-        const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: "binary" });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const parsedData = XLSX.utils.sheet_to_json(sheet);
+    if (file.name.toLowerCase().endsWith('.csv')) {
+      // Handle CSV file
+      reader.readAsText(file);
+      reader.onload = (e: ProgressEvent<FileReader>) => {
+        try {
+          const csvData = e.target?.result as string;
+          // Split by newlines and filter out empty lines
+          const rows = csvData.split('\n').filter(row => row.trim());
+          
+          // Skip header row if present
+          const dataRows = rows[0].includes('"id";"name";"father_name";"email"') ? rows.slice(1) : rows;
+          
+          // Process each row
+          const formattedData = dataRows.map(row => {
+            // Split by semicolon and remove quotes
+            const fields = row.split(';').map(field => 
+              field.replace(/^"|"$/g, '').trim()
+            );
 
-        const formattedData = parsedData.map((row: any) => ({
-          name: row["Full Name"]
-            ? row["Full Name"]
-                .toLowerCase()
-                .split(' ')
-                .map((word: string) => {
-                  if (!word) return '';
-                  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-                })
-                .filter(Boolean)
-                .join(' ')
-                .trim()
-            : "",
-          email: row["Personal Email"] || "",
-          password: "Password@123", // Default password
-          fatherName: `${row["Father Name: First"] || ""} ${row["Father Name: Last"] || ""}`
-            .toLowerCase()
-            .split(' ')
-            .map((word: string) => {
-              if (!word) return '';
-              return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-            })
-            .filter(Boolean)
-            .join(' ')
-            .trim(),
-          gender: row.Gender?.toUpperCase() || "",
-          phoneNumber: row["Phone / WhatsApp"] || "",
-          whatsapp: row["Phone / WhatsApp"] || "",
-          facebookProfileUrl: row["Real Facebook URL"] || "",
-          address: `${row["Address: Address Line 1"] || ""}, ${row["Address: City"] || ""}, ${row["Address: State"] || ""}, ${row["Address: Country"] || ""}`.replace(/, ,/g, ',').trim()
-        }));
+            // Ensure CSV format matches Excel format
+            return {
+              name: fields[1] || "",
+              email: fields[3] || "",
+              password: getRandomString(10),
+              fatherName: fields[2] || "",
+              gender: "MALE" as 'MALE', // Default to MALE if not specified
+              phoneNumber: fields[6] || "",
+              whatsapp: fields[6] || "", // Use phone as whatsapp
+              facebookProfileUrl: fields[14] || "",
+              address: fields[15] || "",
+              rollNo: fields[13] || ""
+            };
+          });
 
-        setBulkData(formattedData);
-        setUploadProgress({
-          total: formattedData.length,
-          completed: 0,
-          failed: 0,
-          currentUser: '',
-        });
-      } catch (error) {
-        setFileError('Error processing the Excel file. Please check the file format.');
-        console.error('Error processing Excel file:', error);
-      }
-    };
+          if (formattedData.length === 0) {
+            setFileError('No valid data found in the CSV file.');
+            return;
+          }
+
+          setBulkData(formattedData);
+          setUploadProgress({
+            total: formattedData.length,
+            completed: 0,
+            failed: 0,
+            currentUser: '',
+          });
+        } catch (err) {
+          setFileError('Error processing the CSV file. Please check the file format.');
+          console.error('Error processing CSV file:', err);
+        }
+      };
+    } else {
+      // Handle Excel file
+      reader.readAsBinaryString(file);
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result;
+          const workbook = XLSX.read(data, { type: "binary" });
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const parsedData = XLSX.utils.sheet_to_json(sheet);
+
+          const formattedData = parsedData.map((row: any) => ({
+            name: row["Full Name"]
+              ? row["Full Name"]
+                  .toLowerCase()
+                  .split(' ')
+                  .map((word: string) => {
+                    if (!word) return '';
+                    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+                  })
+                  .filter(Boolean)
+                  .join(' ')
+                  .trim()
+              : "",
+            email: row["Personal Email"] || "",
+            password: "Password@123", // Default password
+            fatherName: `${row["Father Name: First"] || ""} ${row["Father Name: Last"] || ""}`
+              .toLowerCase()
+              .split(' ')
+              .map((word: string) => {
+                if (!word) return '';
+                return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+              })
+              .filter(Boolean)
+              .join(' ')
+              .trim(),
+            gender: row.Gender?.toUpperCase() || "",
+            phoneNumber: row["Phone / WhatsApp"] || "",
+            whatsapp: row["Phone / WhatsApp"] || "",
+            facebookProfileUrl: row["Real Facebook URL"] || "",
+            address: `${row["Address: Address Line 1"] || ""}, ${row["Address: City"] || ""}, ${row["Address: State"] || ""}, ${row["Address: Country"] || ""}`.replace(/, ,/g, ',').trim()
+          }));
+
+          setBulkData(formattedData);
+          setUploadProgress({
+            total: formattedData.length,
+            completed: 0,
+            failed: 0,
+            currentUser: '',
+          });
+        } catch (error) {
+          setFileError('Error processing the Excel file. Please check the file format.');
+          console.error('Error processing Excel file:', error);
+        }
+      };
+    }
   };
 
   const onSubmit = async (data: UserFormData) => {
@@ -142,48 +200,69 @@ export function AddUserModal({ open, onClose }: AddUserModalProps) {
 
   const handleBulkUpload = async () => {
     if (!bulkData.length) return;
+    setBulkUploadInProgress(true);
 
-    setUploadProgress({
-      total: bulkData.length,
-      completed: 0,
-      failed: 0,
-      currentUser: bulkData[0].name,
-    });
+    try {
+      setUploadProgress({
+        total: bulkData.length,
+        completed: 0,
+        failed: 0,
+        currentUser: bulkData[0].name,
+      });
 
-    // Process all users in parallel with a limit of 5 concurrent requests
-    const batchSize = 5;
-    const batches = [];
-    
-    for (let index = 0; index < bulkData.length; index += batchSize) {
-      const batch = bulkData.slice(index, index + batchSize);
-      const batchPromises = batch.map(async (user, batchIndex) => {
+      // Process users one by one - we want sequential processing here
+      // eslint-disable-next-line no-await-in-loop
+      for (let i = 0; i < bulkData.length; i += 1) {
+        const user = bulkData[i];
+        const nextUser = i + 1 < bulkData.length ? bulkData[i + 1].name : '';
+        
+        // Update current user being processed
+        setUploadProgress((prev) => prev && {
+          ...prev,
+          currentUser: user.name,
+        });
+
         try {
+          // Sequential processing is intentional here to avoid overwhelming the server
+          // eslint-disable-next-line no-await-in-loop
           await addUser(user);
-          setUploadProgress(prev => prev ? {
+          // Update progress after successful registration
+          setUploadProgress((prev) => prev && {
             ...prev,
             completed: prev.completed + 1,
-            currentUser: bulkData[index + batchIndex + 1]?.name || '',
-          } : null);
+            currentUser: nextUser,
+          });
         } catch (err) {
-          setUploadProgress(prev => prev ? {
+          console.error(`Failed to add user ${user.name}:`, err);
+          // Update progress after failed registration and move to next user
+          setUploadProgress((prev) => prev && {
             ...prev,
             failed: prev.failed + 1,
-            currentUser: bulkData[index + batchIndex + 1]?.name || '',
-          } : null);
+            currentUser: nextUser,
+          });
         }
+      }
+
+      // Get final progress state to determine success/failure
+      const finalProgress = await new Promise<BulkUploadProgress | null>((resolve) => {
+        setUploadProgress((prev) => {
+          resolve(prev);
+          return prev;
+        });
       });
-      batches.push(...batchPromises);
-    }
 
-    await Promise.all(batches);
-
-    if (uploadProgress?.failed === 0) {
-      setSuccessMessage(`Successfully registered ${uploadProgress.completed} users!`);
-      setBulkData([]);
-      setIsBulkUpload(false);
-      onClose();
-    } else {
-      setSuccessMessage(`Registration completed with ${uploadProgress?.failed} failures.`);
+      if (finalProgress) {
+        if (finalProgress.failed === 0) {
+          setSuccessMessage(`Successfully registered ${finalProgress.completed} users!`);
+          setBulkData([]);
+          setIsBulkUpload(false);
+          if (onClose) onClose();
+        } else {
+          setSuccessMessage(`Registration completed with ${finalProgress.failed} failures out of ${bulkData.length} users.`);
+        }
+      }
+    } finally {
+      setBulkUploadInProgress(false);
     }
   };
 
@@ -223,21 +302,39 @@ export function AddUserModal({ open, onClose }: AddUserModalProps) {
 
           {isBulkUpload ? (
             <Box sx={{ mt: 2 }}>
-              <input
-                accept=".xlsx,.xls"
-                style={{ display: 'none' }}
-                id="excel-file-upload"
-                type="file"
-                onChange={handleFileUpload}
-              />
-              <Button
-                component="label"
-                htmlFor="excel-file-upload"
-                variant="outlined"
-                startIcon={<Iconify icon="mdi:file-excel" />}
-              >
-                Upload Excel File
-              </Button>
+              <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                <input
+                  accept=".xlsx,.xls"
+                  style={{ display: 'none' }}
+                  id="excel-file-upload"
+                  type="file"
+                  onChange={handleFileUpload}
+                />
+                <Button
+                  component="label"
+                  htmlFor="excel-file-upload"
+                  variant="outlined"
+                  startIcon={<Iconify icon="mdi:file-excel" />}
+                >
+                  Upload Excel File
+                </Button>
+
+                <input
+                  accept=".csv"
+                  style={{ display: 'none' }}
+                  id="csv-file-upload"
+                  type="file"
+                  onChange={handleFileUpload}
+                />
+                <Button
+                  component="label"
+                  htmlFor="csv-file-upload"
+                  variant="outlined"
+                  startIcon={<Iconify icon="mdi:file-delimited" />}
+                >
+                  Upload CSV File
+                </Button>
+              </Stack>
 
               {fileError && (
                 <Alert severity="error" sx={{ mt: 2 }}>
@@ -420,12 +517,24 @@ export function AddUserModal({ open, onClose }: AddUserModalProps) {
           onClick={isBulkUpload ? handleBulkUpload : handleSubmit(onSubmit)}
           color="primary"
           variant="contained"
-          disabled={isBulkUpload ? !bulkData.length : addUserLoading}
-          startIcon={addUserLoading && <CircularProgress size={20} />}
+          disabled={isBulkUpload ? (!bulkData.length || bulkUploadInProgress) : addUserLoading}
+          startIcon={
+            (isBulkUpload ? bulkUploadInProgress : addUserLoading) ? (
+              <CircularProgress size={20} sx={{ color: 'common.white' }} />
+            ) : null
+          }
         >
-          {isBulkUpload ? 'Register All Users' : 'Register'}
+          {isBulkUpload 
+            ? bulkUploadInProgress 
+              ? `Processing (${uploadProgress?.completed || 0}/${bulkData.length})...` 
+              : 'Register All Users' 
+            : addUserLoading 
+              ? 'Registering...' 
+              : 'Register'
+          }
         </Button>
       </DialogActions>
     </Dialog>
   );
 }
+
