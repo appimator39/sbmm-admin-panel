@@ -197,7 +197,7 @@ export const useChapters = (page: number, limit: number) => {
     }
   };
 
-  const addLecture = async (formData: FormData): Promise<boolean> => {
+  const addLecture = async (formData: FormData, config?: { onUploadProgress: (progressEvent: any) => void }): Promise<boolean> => {
     setAddLectureError(null);
     setAddLectureLoading(true);
 
@@ -206,6 +206,7 @@ export const useChapters = (page: number, limit: number) => {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        ...config
       });
 
       return true;

@@ -142,9 +142,9 @@ export function ChapterView() {
     setSelectedChapter(null);
   };
 
-  const handleAddLecture = async (formData: FormData) => {
+  const handleAddLecture = async (formData: FormData, config?: { onUploadProgress: (progressEvent: any) => void }) => {
     try {
-      const success = await addLecture(formData);
+      const success = await addLecture(formData, config);
       if (success) {
         handleCloseLectureModal();
         await fetchChapters(page);
