@@ -95,6 +95,8 @@ export function AddLectureModal({
   };
 
   const handleFormSubmit = async (data: LectureFormData) => {
+
+
     setSuccessMessage(null);
     setFileError(null);
     setUploadProgress(0);
@@ -109,11 +111,12 @@ export function AddLectureModal({
       const formData = new FormData();
       formData.append('file', selectedFile);
 
+
       const createLectureDto = {
         title: data.title,
         description: data.description,
         content: chapterId,
-        order: data.order,
+        order: parseInt(data.order.toString(), 10),
         duration: data.duration,
         isPreview: false,
         resources: data.resources,
