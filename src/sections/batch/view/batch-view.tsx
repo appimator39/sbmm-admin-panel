@@ -22,6 +22,15 @@ import BatchTableRow from '../batch-table-row';
 import { BatchTableToolbar } from '../batch-table-toolbar';
 import { AddBatchModal } from './AddBatchModal';
 
+interface Batch {
+  _id: string;
+  title: string;
+  description: string;
+  students: string[];
+  courses: string[];
+  createdAt: string;
+}
+
 // ----------------------------------------------------------------------
 
 export function BatchView() {
@@ -205,8 +214,8 @@ export function BatchView() {
                           id: batch._id,
                           title: batch.title,
                           description: batch.description,
-                          students: batch.students.map((student) => student._id),
-                          courses: batch.courses.map((course) => course._id),
+                          students: batch.students,
+                          courses: batch.courses,
                           createdAt: batch.createdAt,
                         }}
                         selected={selected.includes(batch._id)}

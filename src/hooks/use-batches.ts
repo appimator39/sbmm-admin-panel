@@ -14,8 +14,8 @@ interface Batch {
   _id: string;
   title: string;
   description: string;
-  students: Student[];
-  courses: Course[];
+  students: string[];
+  courses: string[];
   createdAt: string;
   updatedAt: string;
   __v: number;

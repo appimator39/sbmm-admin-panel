@@ -33,8 +33,14 @@ export const navData = [
     icon: icon('ic-content'),
   },
   {
+    title: 'Email Invitations',
+    path: '/email-invites',
+    icon: icon('ic-email'),
+  },
+  {
     title: 'App Launches',
     path: '/app-launches',
     icon: icon('ic-rocket'),
   },
+
 ];

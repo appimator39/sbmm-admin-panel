@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 import httpService from 'src/services/httpService';
 
-interface Course {
+export interface Course {
   _id: string;
   title: string;
   description: string;
@@ -34,6 +34,12 @@ interface CoursesResponse {
     totalCourses: number;
     totalPages: number;
   };
+}
+
+interface CourseResponse {
+  statusCode: number;
+  message: string;
+  data: Course;
 }
 
 interface AddCourseResponse {
@@ -83,6 +89,20 @@ export const useCourses = (page: number, limit: number) => {
   const [deleteCourseError, setDeleteCourseError] = useState<string | null>(null);
   const [togglePublishLoading, setTogglePublishLoading] = useState(false);
   const [togglePublishError, setTogglePublishError] = useState<string | null>(null);
+
+  const fetchCourseById = useCallback(async (courseId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await httpService.get<CourseResponse>(`/courses/${courseId}`);
+      return response.data.data;
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to fetch course');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const fetchCourses = useCallback(
     async (currentPage: number = page) => {
@@ -178,6 +198,7 @@ export const useCourses = (page: number, limit: number) => {
     togglePublishLoading,
     togglePublishError,
     fetchCourses,
+    fetchCourseById,
     searchCourses,
   };
 };

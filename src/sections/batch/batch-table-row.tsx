@@ -23,6 +23,7 @@ import { fDate } from 'src/utils/format-time';
 import { AssignCoursesModal } from './view/AssignCoursesModal';
 import { EnrollStudentsModal } from './view/EnrollStudentsModal';
 import { RemoveStudentModal } from './view/RemoveStudentModal';
+import { ViewCoursesModal } from './view-courses-modal';
 
 // ----------------------------------------------------------------------
 
@@ -63,6 +64,7 @@ export default function BatchTableRow({
   const [openEnrollModal, setOpenEnrollModal] = useState(false);
   const [openAssignModal, setOpenAssignModal] = useState(false);
   const [openRemoveModal, setOpenRemoveModal] = useState(false);
+  const [openViewCoursesModal, setOpenViewCoursesModal] = useState(false);
   const [enrollLoading, setEnrollLoading] = useState(false);
   const [assignLoading, setAssignLoading] = useState(false);
   const [removeLoading, setRemoveLoading] = useState(false);
@@ -124,6 +126,15 @@ export default function BatchTableRow({
   const handleCloseRemoveModal = () => {
     setOpenRemoveModal(false);
     setRemoveError(null);
+  };
+
+  const handleOpenViewCoursesModal = () => {
+    handleMenuClose();
+    setOpenViewCoursesModal(true);
+  };
+
+  const handleCloseViewCoursesModal = () => {
+    setOpenViewCoursesModal(false);
   };
 
   const handleCloseSnackbar = () => {
@@ -270,6 +281,11 @@ export default function BatchTableRow({
               Assign Courses
             </MenuItem>
 
+            <MenuItem onClick={handleOpenViewCoursesModal}>
+              <Iconify icon="mdi:book-open" sx={{ mr: 2 }} />
+              View Courses
+            </MenuItem>
+
             <MenuItem onClick={handleOpenConfirm} sx={{ color: 'error.main' }}>
               <Iconify icon="solar:trash-bin-trash-bold" sx={{ mr: 2 }} />
               Delete
@@ -325,6 +341,14 @@ export default function BatchTableRow({
         onSubmit={handleRemoveStudent}
         loading={removeLoading}
         error={removeError}
+      />
+
+      <ViewCoursesModal
+        open={openViewCoursesModal}
+        onClose={handleCloseViewCoursesModal}
+        batchId={id}
+        batchTitle={title}
+        courseIds={courses}
       />
 
       <Snackbar
