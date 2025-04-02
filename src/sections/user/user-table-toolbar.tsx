@@ -1,11 +1,11 @@
-import IconButton from '@mui/material/IconButton';
+import { useState } from 'react';
+
+import Box from '@mui/material/Box';
+import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
-import OutlinedInput from '@mui/material/OutlinedInput';
-import Toolbar from '@mui/material/Toolbar';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
 import { Iconify } from 'src/components/iconify';
-import CircularProgress from '@mui/material/CircularProgress';
 
 // ----------------------------------------------------------------------
 
@@ -13,62 +13,70 @@ interface UserTableToolbarProps {
   numSelected: number;
   filterName: string;
   onFilterName: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  searchLoading?: boolean;
+  searchLoading: boolean;
+  onBatchFilterClick: () => void;
 }
 
-export function UserTableToolbar({ numSelected, filterName, onFilterName, searchLoading }: UserTableToolbarProps) {
+export function UserTableToolbar({
+  numSelected,
+  filterName,
+  onFilterName,
+  searchLoading,
+  onBatchFilterClick,
+}: UserTableToolbarProps) {
   return (
-    <Toolbar
+    <Stack
+      spacing={2}
+      alignItems="center"
+      direction={{
+        xs: 'column',
+        md: 'row',
+      }}
       sx={{
-        height: 96,
-        display: 'flex',
-        justifyContent: 'space-between',
-        p: (theme) => theme.spacing(0, 1, 0, 3),
-        ...(numSelected > 0 && {
-          color: 'primary.main',
-          bgcolor: 'primary.lighter',
-        }),
+        p: 2.5,
+        pr: { xs: 2.5, md: 1 },
       }}
     >
-      {numSelected > 0 ? (
-        <Typography component="div" variant="subtitle1">
-          {numSelected} selected
-        </Typography>
-      ) : (
-        <OutlinedInput
-          fullWidth
-          value={filterName}
-          onChange={onFilterName}
-          placeholder="Search by email..."
-          startAdornment={
+      <TextField
+        fullWidth
+        value={filterName}
+        onChange={onFilterName}
+        placeholder="Search by email..."
+        size="small"
+        InputProps={{
+          startAdornment: (
             <InputAdornment position="start">
-              <Iconify width={20} icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+              <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
             </InputAdornment>
-          }
-          endAdornment={
-            searchLoading && (
-              <InputAdornment position="end">
-                <CircularProgress size={20} />
-              </InputAdornment>
-            )
-          }
-          sx={{ maxWidth: 320 }}
-        />
-      )}
+          ),
+          endAdornment: searchLoading && (
+            <InputAdornment position="end">
+              <Iconify icon="eos-icons:loading" sx={{ color: 'text.disabled' }} />
+            </InputAdornment>
+          ),
+          sx: {
+            height: 40,
+          },
+        }}
+      />
 
-      {numSelected > 0 ? (
-        <Tooltip title="Delete">
-          <IconButton>
-            <Iconify icon="solar:trash-bin-trash-bold" />
-          </IconButton>
-        </Tooltip>
-      ) : (
-        <Tooltip title="Filter list">
-          <IconButton>
-            <Iconify icon="ic:round-filter-list" />
-          </IconButton>
-        </Tooltip>
-      )}
-    </Toolbar>
+      <Box sx={{ display: 'flex', gap: 1 }}>
+        <Button
+          variant="outlined"
+          color="primary"
+          startIcon={<Iconify icon="mdi:filter-variant" />}
+          onClick={onBatchFilterClick}
+          sx={{
+            minWidth: 'auto',
+            px: 2,
+            '& .MuiButton-startIcon': {
+              mr: 0.5,
+            },
+          }}
+        >
+          Batches
+        </Button>
+      </Box>
+    </Stack>
   );
 }

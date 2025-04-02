@@ -13,6 +13,7 @@ import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { useUsers } from 'src/hooks/use-users';
 import { DashboardContent } from 'src/layouts/dashboard';
+import httpService from 'src/services/httpService';
 
 import type { UserProps } from '../user-table-row';
 
@@ -23,8 +24,18 @@ import { UserTableRow } from '../user-table-row';
 import { UserTableToolbar } from '../user-table-toolbar';
 import { emptyRows, applyFilter, getComparator } from '../utils';
 import { AddUserModal } from './AddUserModal';
+import { BatchFilterModal } from './BatchFilterModal';
 
 // ----------------------------------------------------------------------
+
+interface UsersResponse {
+  statusCode: number;
+  message: string;
+  data: {
+    users: UserProps[];
+    total: number;
+  };
+}
 
 export function UserView() {
   const table = useTable();
@@ -55,9 +66,19 @@ export function UserView() {
   const [openModal, setOpenModal] = useState(false);
   const [updateUserLoading, setUpdateUserLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [openBatchFilter, setOpenBatchFilter] = useState(false);
+  const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
 
   const handleOpenModal = () => setOpenModal(true);
   const handleCloseModal = () => setOpenModal(false);
+
+  const handleOpenBatchFilter = () => setOpenBatchFilter(true);
+  const handleCloseBatchFilter = () => setOpenBatchFilter(false);
+
+  const handleApplyBatchFilter = async (batchIds: string[]) => {
+    setSelectedBatchIds(batchIds);
+    await fetchUsers(table.page, batchIds);
+  };
 
   const handleFilterName = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
@@ -65,7 +86,7 @@ export function UserView() {
     table.onResetPage();
 
     if (!value) {
-      await fetchUsers(table.page);
+      await fetchUsers(table.page, selectedBatchIds);
       return;
     }
 
@@ -119,27 +140,27 @@ export function UserView() {
 
   const handleDeleteUser = async (userId: string) => {
     await deleteUser(userId);
-    await fetchUsers(table.page);
+    await fetchUsers(table.page, selectedBatchIds);
   };
 
   const handleBlockUser = async (userId: string) => {
     await blockUser(userId);
-    await fetchUsers(table.page);
+    await fetchUsers(table.page, selectedBatchIds);
   };
 
   const handleUnblockUser = async (userId: string) => {
     await unblockUser(userId);
-    await fetchUsers(table.page);
+    await fetchUsers(table.page, selectedBatchIds);
   };
 
   const handleResetHardwareIds = async (userId: string, data: any) => {
     await resetHardwareIds(userId, data);
-    await fetchUsers(table.page);
+    await fetchUsers(table.page, selectedBatchIds);
   };
 
   const handleVerificationChange = async (userId: string, verified: boolean) => {
     await toggleIdVerification(userId);
-    await fetchUsers(table.page);
+    await fetchUsers(table.page, selectedBatchIds);
   };
 
   const handleUpdateUser = async (userId: string, data: any) => {
@@ -198,6 +219,7 @@ export function UserView() {
           filterName={filterName}
           onFilterName={handleFilterName}
           searchLoading={searchLoading}
+          onBatchFilterClick={handleOpenBatchFilter}
         />
 
         <Scrollbar>
@@ -271,7 +293,14 @@ export function UserView() {
       <AddUserModal 
         open={openModal} 
         onClose={handleCloseModal} 
-        onUsersAdded={() => fetchUsers(table.page)}
+        onUsersAdded={() => fetchUsers(table.page, selectedBatchIds)}
+      />
+
+      <BatchFilterModal
+        open={openBatchFilter}
+        onClose={handleCloseBatchFilter}
+        onApplyFilter={handleApplyBatchFilter}
+        selectedBatchIds={selectedBatchIds}
       />
     </DashboardContent>
   );

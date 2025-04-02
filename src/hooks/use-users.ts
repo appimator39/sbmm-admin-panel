@@ -38,7 +38,12 @@ interface UsersResponse {
   message: string;
   data: {
     users: User[];
-    total: number;
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
   };
 }
 
@@ -65,19 +70,30 @@ export const useUsers = (page: number = 0, limit: number = 25) => {
   const [deleteUserError, setDeleteUserError] = useState<string | null>(null);
 
   const fetchUsers = useCallback(
-    async (currentPage: number = page) => {
+    async (currentPage: number = page, batchIds: string[] = []) => {
       setLoading(true);
       setError(null);
       try {
+        const queryParams = new URLSearchParams({
+          page: (currentPage + 1).toString(),
+          limit: limit.toString(),
+        });
+
+        // Add batch IDs to query parameters if they exist
+        batchIds.forEach(id => {
+          queryParams.append('batchIds', id);
+        });
+
         const response = await httpService.get<UsersResponse>(
-          `/users/admin/users?page=${currentPage + 1}&limit=${limit}`
+          `/users/admin/users?${queryParams.toString()}`
         );
         console.log('useUsers fetchUsers response:', response.data.data.users.map(user => ({ id: user._id, isVerified: user.isVerified })));
         setUsers(response.data.data.users);
-        setTotal(response.data.data.total);
+        setTotal(response.data.data.pagination.total);
       } catch (err) {
         setError(err.response?.data?.message || 'Failed to fetch users');
         setUsers([]);
+        setTotal(0);
       } finally {
         setLoading(false);
       }

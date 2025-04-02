@@ -117,6 +117,7 @@ export function ViewCoursesModal({ open, onClose, batchId, batchTitle, courseIds
     }
   };
 
+
   return (
     <>
       <Dialog
