@@ -448,8 +448,8 @@ export function AddUserModal({ open, onClose, onUsersAdded }: AddUserModalProps)
                 {...register('phoneNumber', {
                   required: 'Phone Number is required',
                   pattern: {
-                    value: /^(\+?92|0)?[0-9]{10}$/,
-                    message: 'Please enter a valid phone number (e.g., +923063624278 or 03063624278)',
+                    value: /^\+?[1-9]\d{1,14}$/,
+                    message: 'Please enter a valid international phone number (e.g., +1234567890)',
                   },
                 })}
                 error={!!errors.phoneNumber}
@@ -463,8 +463,8 @@ export function AddUserModal({ open, onClose, onUsersAdded }: AddUserModalProps)
                 {...register('whatsapp', {
                   required: 'WhatsApp Number is required',
                   pattern: {
-                    value: /^(\+?92|0)?[0-9]{10}$/,
-                    message: 'Please enter a valid WhatsApp number (e.g., +923063624278 or 03063624278)',
+                    value: /^\+?[1-9]\d{1,14}$/,
+                    message: 'Please enter a valid international WhatsApp number (e.g., +1234567890)',
                   },
                 })}
                 error={!!errors.whatsapp}
