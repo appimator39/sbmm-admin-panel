@@ -20,7 +20,6 @@ import Typography from '@mui/material/Typography';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 import { fDate } from 'src/utils/format-time';
-import { CourseFilesModal } from './view/CourseFilesModal';
 
 // ----------------------------------------------------------------------
 
@@ -55,7 +54,6 @@ export default function CourseTableRow({
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [openConfirm, setOpenConfirm] = useState(false);
-  const [openCourseFiles, setOpenCourseFiles] = useState(false);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -123,10 +121,6 @@ export default function CourseTableRow({
     }
   };
 
-  const handleOpenCourseFiles = () => {
-    setOpenCourseFiles(true);
-    handleMenuClose();
-  };
 
   return (
     <>
@@ -184,11 +178,6 @@ export default function CourseTableRow({
               {isPublished ? 'Unpublish' : 'Publish'}
             </MenuItem>
 
-            <MenuItem onClick={handleOpenCourseFiles}>
-              <Iconify icon="mdi:file-pdf" sx={{ mr: 2 }} />
-              Course Files
-            </MenuItem>
-
             <MenuItem onClick={handleOpenConfirm} sx={{ color: 'error.main' }}>
               <Iconify icon="solar:trash-bin-trash-bold" sx={{ mr: 2 }} />
               Delete
@@ -221,13 +210,6 @@ export default function CourseTableRow({
           </Button>
         </DialogActions>
       </Dialog>
-
-      <CourseFilesModal
-        open={openCourseFiles}
-        onClose={() => setOpenCourseFiles(false)}
-        courseId={id}
-        courseTitle={title}
-      />
 
       <Snackbar
         open={snackbar.open}

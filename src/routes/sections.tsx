@@ -8,6 +8,7 @@ import { DashboardLayout } from 'src/layouts/dashboard';
 import { ChapterView } from 'src/sections/chapter/view/chapter-view';
 import { varAlpha } from 'src/theme/styles';
 import AppLaunchesView from 'src/sections/app-launches/view/AppLaunchesView';
+import ResourcesView from 'src/sections/resources/resources-view';
 
 // ----------------------------------------------------------------------
 
@@ -50,6 +51,7 @@ export function Router() {
         { path: 'products', element: <ProductsPage /> },
         { path: 'blog', element: <CoursesView /> },
         { path: 'chapters', element: <ChapterView /> },
+        { path: 'resources', element: <ResourcesView /> },
         { path: 'app-launches', element: <AppLaunchesView /> },
         { path: 'email-invites', element: <EmailInvitesPage /> },
       ],

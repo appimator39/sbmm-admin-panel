@@ -24,6 +24,7 @@ import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { Iconify } from 'src/components/iconify';
 import { fDate } from 'src/utils/format-time';
+import LectureFilesModal from './view/LectureFilesModal';
 
 // ----------------------------------------------------------------------
 
@@ -68,10 +69,11 @@ export default function ChapterTableRow({
   const { title, lecturesCount, courseTitle, createdAt, lectures } = row;
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [lectureAnchorEl, setLectureAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedLectureId, setSelectedLectureId] = useState<string | null>(null);
   const [openConfirm, setOpenConfirm] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [selectedLecture, setSelectedLecture] = useState<string | null>(null);
   const [openLectureConfirm, setOpenLectureConfirm] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -81,6 +83,8 @@ export default function ChapterTableRow({
     message: '',
     severity: 'success',
   });
+  const [openLectureFiles, setOpenLectureFiles] = useState(false);
+  const [selectedLecture, setSelectedLecture] = useState<{ id: string; title: string } | null>(null);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -90,13 +94,32 @@ export default function ChapterTableRow({
     setAnchorEl(null);
   };
 
+  const handleLectureMenuOpen = (event: React.MouseEvent<HTMLElement>, lectureId: string) => {
+    setLectureAnchorEl(event.currentTarget);
+    setSelectedLectureId(lectureId);
+  };
+
+  const handleLectureMenuClose = () => {
+    setLectureAnchorEl(null);
+    setSelectedLectureId(null);
+  };
+
   const handleOpenConfirm = () => {
     handleMenuClose();
     setOpenConfirm(true);
   };
 
+  const handleOpenLectureConfirm = () => {
+    handleLectureMenuClose();
+    setOpenLectureConfirm(true);
+  };
+
   const handleCloseConfirm = () => {
     setOpenConfirm(false);
+  };
+
+  const handleCloseLectureConfirm = () => {
+    setOpenLectureConfirm(false);
   };
 
   const handleCloseSnackbar = () => {
@@ -126,32 +149,33 @@ export default function ChapterTableRow({
   };
 
   const handleDeleteLecture = async () => {
-    if (!selectedLecture) return;
-    try {
-      await onDeleteLecture(selectedLecture);
-      setSnackbar({
-        open: true,
-        message: 'Lecture deleted successfully',
-        severity: 'success',
-      });
-      setOpenLectureConfirm(false);
-      setSelectedLecture(null);
-    } catch (error) {
-      setSnackbar({
-        open: true,
-        message: 'Failed to delete lecture',
-        severity: 'error',
-      });
+    if (selectedLectureId) {
+      try {
+        await onDeleteLecture(selectedLectureId);
+        setSnackbar({
+          open: true,
+          message: 'Lecture deleted successfully',
+          severity: 'success',
+        });
+        handleCloseLectureConfirm();
+      } catch (error) {
+        setSnackbar({
+          open: true,
+          message: 'Failed to delete lecture',
+          severity: 'error',
+        });
+      }
     }
   };
 
-  const handleOpenLectureConfirm = (lectureId: string) => {
-    setSelectedLecture(lectureId);
-    setOpenLectureConfirm(true);
+  const handleAddLectureFiles = (lectureId: string, lectureTitle: string) => {
+    handleLectureMenuClose();
+    setSelectedLecture({ id: lectureId, title: lectureTitle });
+    setOpenLectureFiles(true);
   };
 
-  const handleCloseLectureConfirm = () => {
-    setOpenLectureConfirm(false);
+  const handleCloseLectureFiles = () => {
+    setOpenLectureFiles(false);
     setSelectedLecture(null);
   };
 
@@ -242,16 +266,41 @@ export default function ChapterTableRow({
                       <TableCell align="right">
                         <IconButton
                           size="small"
-                          color="error"
-                          onClick={() => handleOpenLectureConfirm(lecture._id)}
-                          disabled={deleteLectureLoading && selectedLecture === lecture._id}
+                          onClick={(event) => handleLectureMenuOpen(event, lecture._id)}
                         >
-                          {deleteLectureLoading && selectedLecture === lecture._id ? (
-                            <CircularProgress size={20} />
-                          ) : (
-                            <Iconify icon="solar:trash-bin-trash-bold" />
-                          )}
+                          <Iconify icon="eva:more-vertical-fill" />
                         </IconButton>
+
+                        <Menu
+                          anchorEl={lectureAnchorEl}
+                          open={Boolean(lectureAnchorEl)}
+                          onClose={handleLectureMenuClose}
+                          anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+                          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                          PaperProps={{
+                            sx: { width: 160 },
+                          }}
+                        >
+                          <MenuItem
+                            onClick={() => {
+                              if (selectedLectureId) {
+                                const foundLecture = lectures.find(l => l._id === selectedLectureId);
+                                if (foundLecture) {
+                                  handleAddLectureFiles(foundLecture._id, foundLecture.title);
+                                }
+                              }
+                            }}
+                            sx={{ color: 'primary.main' }}
+                          >
+                            <Iconify icon="mdi:file-pdf" sx={{ mr: 2 }} />
+                            Manage Files
+                          </MenuItem>
+
+                          <MenuItem onClick={handleOpenLectureConfirm} sx={{ color: 'error.main' }}>
+                            <Iconify icon="solar:trash-bin-trash-bold" sx={{ mr: 2 }} />
+                            Delete
+                          </MenuItem>
+                        </Menu>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -299,27 +348,29 @@ export default function ChapterTableRow({
       <Dialog
         open={openLectureConfirm}
         onClose={handleCloseLectureConfirm}
-        aria-labelledby="delete-lecture-dialog-title"
-        aria-describedby="delete-lecture-dialog-description"
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
       >
-        <DialogTitle id="delete-lecture-dialog-title">Delete Lecture</DialogTitle>
+        <DialogTitle id="alert-dialog-title">Delete Lecture</DialogTitle>
         <DialogContent>
-          <DialogContentText id="delete-lecture-dialog-description">
-            Are you sure you want to delete this lecture?
+          <DialogContentText id="alert-dialog-description">
+            Are you sure you want to delete this lecture? This action cannot be undone.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseLectureConfirm}>Cancel</Button>
-          <Button
-            color="error"
-            onClick={handleDeleteLecture}
-            disabled={deleteLectureLoading}
-            startIcon={deleteLectureLoading && <CircularProgress size={20} />}
-          >
+          <Button onClick={handleDeleteLecture} color="error" autoFocus>
             Delete
           </Button>
         </DialogActions>
       </Dialog>
+
+      <LectureFilesModal
+        open={openLectureFiles}
+        onClose={handleCloseLectureFiles}
+        lectureId={selectedLecture?.id || ''}
+        lectureTitle={selectedLecture?.title || ''}
+      />
 
       <Snackbar
         open={snackbar.open}
