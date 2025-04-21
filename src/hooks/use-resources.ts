@@ -50,6 +50,7 @@ export function useResources(page: number, rowsPerPage: number) {
     description: string;
     fileType: string;
     file: File;
+    batchIds: string[];
   }) => {
     setAddResourceLoading(true);
     try {
@@ -59,6 +60,7 @@ export function useResources(page: number, rowsPerPage: number) {
         title: data.title,
         description: data.description,
         fileType: data.fileType,
+        batchIds: data.batchIds,
       }));
 
       await httpService.post('/resources', formData, {

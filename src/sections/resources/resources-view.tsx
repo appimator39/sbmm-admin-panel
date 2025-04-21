@@ -96,6 +96,7 @@ export default function ResourcesView() {
     description: string;
     fileType: string;
     file: File;
+    batchIds: string[];
   }) => {
     const success = await addResource(data);
     if (success) {
@@ -212,42 +213,59 @@ export default function ResourcesView() {
               />
 
               <TableBody>
-                {filteredResources
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((resource) => (
-                    <TableRow hover key={resource._id} selected={selected.includes(resource._id)}>
-                      <TableCell padding="checkbox">
-                        <Checkbox checked={selected.includes(resource._id)} onClick={() => handleSelectRow(resource._id)} />
-                      </TableCell>
+                {filteredResources.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                        <Iconify icon="mdi:file-document-outline" sx={{ fontSize: 40, color: 'text.disabled' }} />
+                        <Typography variant="h6" color="text.secondary">
+                          No Resources Found
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Get started by adding a new resource
+                        </Typography>
+                      
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredResources
+                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                    .map((resource) => (
+                      <TableRow hover key={resource._id} selected={selected.includes(resource._id)}>
+                        <TableCell padding="checkbox">
+                          <Checkbox checked={selected.includes(resource._id)} onClick={() => handleSelectRow(resource._id)} />
+                        </TableCell>
 
-                      <TableCell>
-                        <Typography variant="subtitle2">{resource.title}</Typography>
-                      </TableCell>
+                        <TableCell>
+                          <Typography variant="subtitle2">{resource.title}</Typography>
+                        </TableCell>
 
-                      <TableCell>{resource.description}</TableCell>
+                        <TableCell>{resource.description}</TableCell>
 
-                      <TableCell>{resource.fileName}</TableCell>
+                        <TableCell>{resource.fileName}</TableCell>
 
-                      <TableCell>{resource.fileType}</TableCell>
+                        <TableCell>{resource.fileType}</TableCell>
 
-                      <TableCell>{fDate(resource.createdAt)}</TableCell>
+                        <TableCell>{fDate(resource.createdAt)}</TableCell>
 
-                      <TableCell align="right">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => handleDeleteClick(resource._id)}
-                          disabled={deleteResourceLoading && resourceToDelete === resource._id}
-                        >
-                          {deleteResourceLoading && resourceToDelete === resource._id ? (
-                            <CircularProgress size={20} />
-                          ) : (
-                            <Iconify icon="solar:trash-bin-trash-bold" />
-                          )}
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        <TableCell align="right">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleDeleteClick(resource._id)}
+                            disabled={deleteResourceLoading && resourceToDelete === resource._id}
+                          >
+                            {deleteResourceLoading && resourceToDelete === resource._id ? (
+                              <CircularProgress size={20} />
+                            ) : (
+                              <Iconify icon="solar:trash-bin-trash-bold" />
+                            )}
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                )}
 
                 <TableEmptyRows
                   height={68}
