@@ -27,6 +27,8 @@ export function useResources(page: number, rowsPerPage: number) {
   const [addResourceError, setAddResourceError] = useState<string | null>(null);
   const [deleteResourceLoading, setDeleteResourceLoading] = useState(false);
   const [deleteResourceError, setDeleteResourceError] = useState<string | null>(null);
+  const [updateBatchesLoading, setUpdateBatchesLoading] = useState(false);
+  const [updateBatchesError, setUpdateBatchesError] = useState<string | null>(null);
 
   const fetchResources = useCallback(async () => {
     setLoading(true);
@@ -93,6 +95,21 @@ export function useResources(page: number, rowsPerPage: number) {
     }
   }, [fetchResources]);
 
+  const updateResourceBatches = useCallback(async (data: { resourceId: string; batchIds: string[] }) => {
+    setUpdateBatchesLoading(true);
+    setUpdateBatchesError(null);
+    try {
+      await httpService.post('/resources/update-resource-batches', data);
+      await fetchResources();
+      return true;
+    } catch (err) {
+      setUpdateBatchesError(err instanceof Error ? err.message : 'Failed to update resource batches');
+      return false;
+    } finally {
+      setUpdateBatchesLoading(false);
+    }
+  }, [fetchResources]);
+
   return {
     resources,
     total,
@@ -104,6 +121,9 @@ export function useResources(page: number, rowsPerPage: number) {
     deleteResource,
     deleteResourceLoading,
     deleteResourceError,
+    updateResourceBatches,
+    updateBatchesLoading,
+    updateBatchesError,
     fetchResources,
   };
 } 

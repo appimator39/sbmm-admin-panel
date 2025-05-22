@@ -5,7 +5,6 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  TextField,
   Box,
   Alert,
   List,
@@ -16,42 +15,33 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { LoadingButton } from '@mui/lab';
-import { Iconify } from 'src/components/iconify';
 import { useBatches } from 'src/hooks/use-batches';
 
-interface AddResourceModalProps {
+interface EditResourceBatchesModalProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: {
-    title: string;
-    description: string;
-    fileType: string;
-    file: File;
+    resourceId: string;
     batchIds: string[];
   }) => Promise<boolean>;
   loading: boolean;
   error: string | null;
+  resourceId: string;
+  currentBatchIds: string[];
 }
 
-export function AddResourceModal({
+export function EditResourceBatchesModal({
   open,
   onClose,
   onSubmit,
   loading,
   error,
-}: AddResourceModalProps) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [file, setFile] = useState<File | null>(null);
-  const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
+  resourceId,
+  currentBatchIds,
+}: EditResourceBatchesModalProps) {
+  const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>(currentBatchIds);
   
-  const { batches, loading: batchesLoading, error: batchesError, fetchBatches } = useBatches(0, 100);
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      setFile(event.target.files[0]);
-    }
-  };
+  const { batches, loading: batchesLoading, error: batchesError } = useBatches(0, 100);
 
   const handleBatchToggle = (batchId: string) => {
     setSelectedBatchIds((prev) =>
@@ -62,65 +52,24 @@ export function AddResourceModal({
   };
 
   const handleSubmit = async () => {
-    if (!file) return;
-
     const success = await onSubmit({
-      title,
-      description,
-      fileType: file.type,
-      file,
+      resourceId,
       batchIds: selectedBatchIds,
     });
 
     if (success) {
-      setTitle('');
-      setDescription('');
-      setFile(null);
-      setSelectedBatchIds([]);
       onClose();
     }
   };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Add New Resource</DialogTitle>
+      <DialogTitle>Edit Resource Batches</DialogTitle>
       <DialogContent>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
           {error && <Alert severity="error">{error}</Alert>}
-          <TextField
-            label="Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            fullWidth
-          />
-          <TextField
-            label="Description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            fullWidth
-            multiline
-            rows={3}
-          />
-          <Button
-            variant="outlined"
-            component="label"
-            startIcon={<Iconify icon="solar:upload-bold" />}
-          >
-            Upload File
-            <input
-              type="file"
-              hidden
-              onChange={handleFileChange}
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.csv,.ppt,.pptx,.txt"
-            />
-          </Button>
-          {file && (
-            <Alert severity="info">
-              Selected file: {file.name}
-            </Alert>
-          )}
-
-          <Typography variant="subtitle1" sx={{ mt: 2 }}>
+          
+          <Typography variant="subtitle1">
             Select Batches
           </Typography>
           
@@ -131,7 +80,7 @@ export function AddResourceModal({
           ) : batchesError ? (
             <Alert severity="error">{batchesError}</Alert>
           ) : (
-            <List sx={{ maxHeight: 200, overflow: 'auto' }}>
+            <List sx={{ maxHeight: 300, overflow: 'auto' }}>
               {batches.map((batch) => (
                 <ListItem
                   key={batch._id}
@@ -162,10 +111,10 @@ export function AddResourceModal({
         <LoadingButton
           onClick={handleSubmit}
           loading={loading}
-          disabled={!title || !description || !file || selectedBatchIds.length === 0}
+          disabled={selectedBatchIds.length === 0}
           variant="contained"
         >
-          Add Resource
+          Save Changes
         </LoadingButton>
       </DialogActions>
     </Dialog>

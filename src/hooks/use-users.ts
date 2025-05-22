@@ -181,7 +181,7 @@ export const useUsers = (page: number = 0, limit: number = 25) => {
 
   const searchUsers = async (query: string) => {
     try {
-      const response = await httpService.get<SearchUsersResponse>(`/user/search?q=${query}`);
+      const response = await httpService.get<SearchUsersResponse>(`/users/admin/search?email=${encodeURIComponent(query)}`);
       return response.data.data.users;
     } catch (err) {
       throw new Error(err.response?.data?.message || 'Failed to search users');

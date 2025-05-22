@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import axios from 'axios';
 
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -14,6 +15,7 @@ import TableContainer from '@mui/material/TableContainer';
 import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
+import { Menu, MenuItem } from '@mui/material';
 
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
@@ -26,6 +28,7 @@ import { TableEmptyRows } from '../user/table-empty-rows';
 import { emptyRows } from '../user/utils';
 import { ResourcesTableHead } from './resources-table-head';
 import { AddResourceModal } from './view/AddResourceModal';
+import { EditResourceBatchesModal } from './view/EditResourceBatchesModal';
 
 // ----------------------------------------------------------------------
 
@@ -40,6 +43,10 @@ export default function ResourcesView() {
   const [addResourceError, setAddResourceError] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [resourceToDelete, setResourceToDelete] = useState<string | null>(null);
+  const [editBatchesModalOpen, setEditBatchesModalOpen] = useState(false);
+  const [selectedResource, setSelectedResource] = useState<{ id: string; batchIds: string[] } | null>(null);
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedResourceForMenu, setSelectedResourceForMenu] = useState<string | null>(null);
 
   const {
     resources,
@@ -52,6 +59,9 @@ export default function ResourcesView() {
     deleteResource,
     deleteResourceLoading,
     deleteResourceError,
+    updateResourceBatches,
+    updateBatchesLoading,
+    updateBatchesError,
     fetchResources,
   } = useResources(page, rowsPerPage);
 
@@ -163,6 +173,34 @@ export default function ResourcesView() {
     resource.title.toLowerCase().includes(filterName.toLowerCase())
   );
 
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, resourceId: string) => {
+    setMenuAnchorEl(event.currentTarget);
+    setSelectedResourceForMenu(resourceId);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+    setSelectedResourceForMenu(null);
+  };
+
+  const handleEditBatchesClick = (resource: any) => {
+    setSelectedResource({
+      id: resource._id,
+      batchIds: resource.batchIds || [],
+    });
+    setEditBatchesModalOpen(true);
+    handleMenuClose();
+  };
+
+  const handleUpdateResourceBatches = async (data: { resourceId: string; batchIds: string[] }) => {
+    const success = await updateResourceBatches(data);
+    if (success) {
+      setEditBatchesModalOpen(false);
+      setSelectedResource(null);
+    }
+    return success;
+  };
+
   if (loading) {
     return (
       <DashboardContent>
@@ -252,16 +290,33 @@ export default function ResourcesView() {
                         <TableCell align="right">
                           <IconButton
                             size="small"
-                            color="error"
-                            onClick={() => handleDeleteClick(resource._id)}
-                            disabled={deleteResourceLoading && resourceToDelete === resource._id}
+                            onClick={(e) => handleMenuOpen(e, resource._id)}
                           >
-                            {deleteResourceLoading && resourceToDelete === resource._id ? (
-                              <CircularProgress size={20} />
-                            ) : (
-                              <Iconify icon="solar:trash-bin-trash-bold" />
-                            )}
+                            <Iconify icon="eva:more-vertical-fill" />
                           </IconButton>
+                          <Menu
+                            anchorEl={menuAnchorEl}
+                            open={Boolean(menuAnchorEl) && selectedResourceForMenu === resource._id}
+                            onClose={handleMenuClose}
+                          >
+                            <MenuItem
+                              onClick={() => handleEditBatchesClick(resource)}
+                              sx={{ color: 'info.main' }}
+                            >
+                              <Iconify icon="solar:pen-bold" sx={{ mr: 1 }} />
+                              Edit Batches
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() => {
+                                handleDeleteClick(resource._id);
+                                handleMenuClose();
+                              }}
+                              sx={{ color: 'error.main' }}
+                            >
+                              <Iconify icon="solar:trash-bin-trash-bold" sx={{ mr: 1 }} />
+                              Delete
+                            </MenuItem>
+                          </Menu>
                         </TableCell>
                       </TableRow>
                     ))
@@ -311,6 +366,21 @@ export default function ResourcesView() {
         loading={addResourceLoading}
         error={addResourceError}
       />
+
+      {selectedResource && (
+        <EditResourceBatchesModal
+          open={editBatchesModalOpen}
+          onClose={() => {
+            setEditBatchesModalOpen(false);
+            setSelectedResource(null);
+          }}
+          onSubmit={handleUpdateResourceBatches}
+          loading={updateBatchesLoading}
+          error={updateBatchesError}
+          resourceId={selectedResource.id}
+          currentBatchIds={selectedResource.batchIds}
+        />
+      )}
     </DashboardContent>
   );
 } 

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -37,6 +37,71 @@ interface UsersResponse {
   };
 }
 
+interface SearchResponse {
+  statusCode: number;
+  message: string;
+  data: {
+    _id: string;
+    name: string;
+    fatherName: string;
+    gender: string;
+    phoneNumber: string;
+    whatsapp: string;
+    idVerified: boolean;
+    hardwareIdWindows: string | null;
+    hardwareIdAndroid: string | null;
+    hardwareIdMac: string | null;
+    hardwareIdIOS: string | null;
+    rollNo: string;
+    facebookProfileUrl: string;
+    address: string;
+    isAccountActive: boolean;
+    isVerified: boolean;
+    notice: string;
+    email: string;
+    avatar: string;
+    role: string;
+    batches: { title: string }[];
+    createdAt: string;
+    updatedAt: string;
+  }[];
+}
+
+// Simple debounce function
+function useDebounce<T extends (...args: any[]) => any>(
+  callback: T,
+  delay: number
+): [(...args: Parameters<T>) => void, () => void] {
+  const timeoutRef = useRef<NodeJS.Timeout>();
+
+  const debouncedCallback = useCallback(
+    (...args: Parameters<T>) => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      timeoutRef.current = setTimeout(() => {
+        callback(...args);
+      }, delay);
+    },
+    [callback, delay]
+  );
+
+  const cancel = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+  }, []);
+
+  useEffect(() => () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+  }, []);
+
+  return [debouncedCallback, cancel];
+}
+
 export function UserView() {
   const table = useTable();
   const { 
@@ -68,6 +133,7 @@ export function UserView() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [openBatchFilter, setOpenBatchFilter] = useState(false);
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleOpenModal = () => setOpenModal(true);
   const handleCloseModal = () => setOpenModal(false);
@@ -80,63 +146,102 @@ export function UserView() {
     await fetchUsers(table.page, batchIds);
   };
 
+  // Update search query and trigger API search
   const handleFilterName = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
     setFilterName(value);
+    setSearchQuery(value);
     table.onResetPage();
 
-    if (!value) {
+    // If search query is less than 2 characters, show all users
+    if (value.length < 2) {
       await fetchUsers(table.page, selectedBatchIds);
       return;
     }
 
-    // First check if we have a match in local users
-    const localMatch = users.find(user => 
-      user.email.toLowerCase().includes(value.toLowerCase())
-    );
-
-    if (localMatch) {
-      setSearchLoading(false);
-      setError(null);
+    // If search query is 2 characters, filter local users
+    if (value.length === 2) {
+      const localMatches = users.filter(user => 
+        user.email.toLowerCase().includes(value.toLowerCase()) ||
+        user.name.toLowerCase().includes(value.toLowerCase())
+      );
+      setUsers(localMatches);
+      setTotal(localMatches.length);
       return;
     }
 
-    // If no local match and it's a complete email, try API
-    const isCompleteEmail = value.includes('@') && value.includes('.');
-    
-    if (isCompleteEmail) {
-      setSearchLoading(true);
-      try {
-        // Try to find the exact email
-        const student = await findStudentByEmail(value);
-        if (student) {
-          setUsers([student]);
-          setTotal(1);
-          setError(null);
-          return;
-        }
-      } catch (err) {
-        // If not found, continue with normal search
-      }
+    // If search query is 3 or more characters, search API
+    setSearchLoading(true);
+    try {
+      const response = await httpService.get<SearchResponse>(`/users/admin/find-student?email=${encodeURIComponent(value)}`);
+      const searchResults = response.data.data;
+      
+      // Map the search results to include all required User type fields
+      const mappedApiUsers = searchResults.map(user => ({
+        ...user,
+        status: user.isAccountActive ? 'Active' : 'Blocked',
+        cnicBackImage: null,
+        cnicFrontImage: null,
+        backCNICURL: null,
+        frontCNICURL: null,
+      }));
 
-      try {
-        const searchResults = await searchUsers(value);
-        setUsers(searchResults);
-        setTotal(searchResults.length);
-        setError(null);
-      } catch (err) {
-        setError(err.message);
-        setUsers([]);
-        setTotal(0);
-      } finally {
-        setSearchLoading(false);
-      }
-    } else {
-      // For incomplete email, just filter the existing users
-      setSearchLoading(false);
+      // Get local matches and map them to match API format
+      const localMatches = users
+        .filter(user => 
+          user.email.toLowerCase().includes(value.toLowerCase()) ||
+          user.name.toLowerCase().includes(value.toLowerCase())
+        )
+        .map(user => ({
+          ...user,
+          notice: '',
+          status: user.isAccountActive ? 'Active' : 'Blocked',
+          cnicBackImage: null,
+          cnicFrontImage: null,
+          backCNICURL: null,
+          frontCNICURL: null,
+        }));
+
+      // Combine API results with local matches, removing duplicates
+      const combinedUsers = [...mappedApiUsers];
+      localMatches.forEach(localUser => {
+        if (!combinedUsers.some(apiUser => apiUser._id === localUser._id)) {
+          combinedUsers.push(localUser);
+        }
+      });
+
+      setUsers(combinedUsers);
+      setTotal(combinedUsers.length);
       setError(null);
+    } catch (err: any) {
+      setError(err.message || 'Failed to search students');
+      setUsers([]);
+      setTotal(0);
+    } finally {
+      setSearchLoading(false);
     }
   };
+
+  const dataFiltered = users.map((user) => ({
+    ...user,
+    id: user._id,
+    _id: user._id,
+    email: user.email,
+    role: user.role || '',
+    batch: user.batches.map((batch) => batch.title).join(', '),
+    status: user.isAccountActive ? 'Active' : 'Blocked',
+    avatarUrl: user.avatar || '',
+    company: user.email || '',
+    fatherName: user.fatherName || '',
+    gender: user.gender || '',
+    phoneNumber: user.phoneNumber || '',
+    whatsapp: user.whatsapp || '',
+    rollNo: user.rollNo || '',
+    facebookProfileUrl: user.facebookProfileUrl || '',
+    address: user.address || '',
+  }));
+
+  const notFound = !dataFiltered.length && !!filterName && !searchLoading;
 
   const handleDeleteUser = async (userId: string) => {
     await deleteUser(userId);
@@ -172,30 +277,15 @@ export function UserView() {
     }
   };
 
-  const dataFiltered: UserProps[] = applyFilter({
-    inputData: users.map((user) => ({
-      ...user,
-      id: user._id,
-      _id: user._id,
-      email: user.email,
-      role: user.role || '',
-      batch: user.batches.map((batch) => batch.title).join(', '),
-      status: user.isAccountActive ? 'Active' : 'Blocked',
-      avatarUrl: user.avatar || '',
-      company: user.email || '',
-      fatherName: user.fatherName || '',
-      gender: user.gender || '',
-      phoneNumber: user.phoneNumber || '',
-      whatsapp: user.whatsapp || '',
-      rollNo: user.rollNo || '',
-      facebookProfileUrl: user.facebookProfileUrl || '',
-      address: user.address || '',
-    })),
-    comparator: getComparator(table.order, table.orderBy),
-    filterName,
-  });
+  const handleChangePage = useCallback((event: unknown, newPage: number) => {
+    table.onChangePage(event, newPage);
+    fetchUsers(newPage, selectedBatchIds);
+  }, [table, fetchUsers, selectedBatchIds]);
 
-  const notFound = !dataFiltered.length && !!filterName && !searchLoading;
+  const handleChangeRowsPerPage = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    table.onChangeRowsPerPage(event);
+    fetchUsers(0, selectedBatchIds);
+  }, [table, fetchUsers, selectedBatchIds]);
 
   return (
     <DashboardContent>
@@ -284,9 +374,9 @@ export function UserView() {
           page={table.page}
           count={total}
           rowsPerPage={table.rowsPerPage}
-          onPageChange={table.onChangePage}
+          onPageChange={handleChangePage}
           rowsPerPageOptions={[5, 10, 25]}
-          onRowsPerPageChange={table.onChangeRowsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </Card>
 

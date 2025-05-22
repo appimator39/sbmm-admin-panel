@@ -33,6 +33,11 @@ export const navData = [
     icon: icon('ic-content'),
   },
   {
+    title: 'Quiz',
+    path: '/quiz',
+    icon: icon('ic-quiz'),
+  },
+  {
     title: 'Resources',
     path: '/resources',
     icon: icon('ic-resources'),
@@ -47,4 +52,5 @@ export const navData = [
     path: '/app-launches',
     icon: icon('ic-rocket'),
   },
+
 ];
