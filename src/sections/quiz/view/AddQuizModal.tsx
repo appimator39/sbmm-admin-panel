@@ -48,6 +48,7 @@ interface FormErrors {
   batches?: string;
   totalMarks?: string;
   passingMarks?: string;
+  duration?: string;
   lastDateToSubmit?: string;
   questions?: string;
 }
@@ -64,6 +65,7 @@ export function AddQuizModal({ open, onClose, onQuizAdded }: AddQuizModalProps) 
   const [isCreatingTopicLoading, setIsCreatingTopicLoading] = useState(false);
   const [totalMarks, setTotalMarks] = useState('');
   const [passingMarks, setPassingMarks] = useState('');
+  const [duration, setDuration] = useState('');
   const [lastDateToSubmit, setLastDateToSubmit] = useState<Date | null>(null);
   const [questions, setQuestions] = useState([
     {
@@ -113,6 +115,10 @@ export function AddQuizModal({ open, onClose, onQuizAdded }: AddQuizModalProps) 
 
     if (parseInt(passingMarks, 10) > parseInt(totalMarks, 10)) {
       newErrors.passingMarks = 'Passing marks cannot be greater than total marks';
+    }
+
+    if (!duration || parseInt(duration, 10) <= 0) {
+      newErrors.duration = 'Duration must be greater than 0 minutes';
     }
 
     if (!lastDateToSubmit) {
@@ -222,6 +228,7 @@ export function AddQuizModal({ open, onClose, onQuizAdded }: AddQuizModalProps) 
         batchIds: selectedBatches.map(batch => batch._id),
         totalMarks: parseInt(totalMarks, 10),
         passingMarks: parseInt(passingMarks, 10),
+        duration: parseInt(duration, 10),
         lastDateToSubmit: lastDateToSubmit?.toISOString(),
         questions,
       });
@@ -388,6 +395,19 @@ export function AddQuizModal({ open, onClose, onQuizAdded }: AddQuizModalProps) 
               helperText={errors.passingMarks}
             />
           </Stack>
+
+          <TextField
+            fullWidth
+            label="Duration (minutes)"
+            type="number"
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            error={!!errors.duration}
+            helperText={errors.duration}
+            InputProps={{
+              endAdornment: <InputAdornment position="end">mins</InputAdornment>,
+            }}
+          />
 
           <LocalizationProvider dateAdapter={AdapterDateFns}>
             <DatePicker

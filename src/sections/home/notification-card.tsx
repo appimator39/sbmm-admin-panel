@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSelector } from 'react-redux';
+import { batch, useSelector } from 'react-redux';
 
 import { LoadingButton } from '@mui/lab';
 import Alert from '@mui/material/Alert';
@@ -109,6 +109,9 @@ export function NotificationCard() {
       const payload = {
         title: editForm.title,
         description: editForm.description,
+        isDefault: true,
+        userIds: [],
+        batchIds: []
       };
       const response = await httpService.post<ApiResponse>('/notifications', payload);
       if (response.data?.data) {

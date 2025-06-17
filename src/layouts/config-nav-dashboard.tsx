@@ -18,6 +18,16 @@ export const navData = [
     icon: icon('ic-user'),
   },
   {
+    title: 'Urgent Notifications',
+    path: '/urgent-notifications',
+    icon: icon('ic-notification'),
+  },
+  {
+    title: 'Certificates',
+    path: '/certificates',
+    icon: icon('ic-certificate'),
+  },
+  {
     title: 'Batch',
     path: '/products',
     icon: icon('ic-batch'),
@@ -52,5 +62,4 @@ export const navData = [
     path: '/app-launches',
     icon: icon('ic-rocket'),
   },
-
 ];

@@ -20,6 +20,8 @@ export const Page404 = lazy(() => import('src/pages/page-not-found'));
 export const CoursesView = lazy(() => import('src/pages/courses'));
 export const QuizView = lazy(() => import('src/pages/quiz'));
 export const EmailInvitesPage = lazy(() => import('src/pages/dashboard/email-invites'));
+export const UrgentNotificationsPage = lazy(() => import('src/pages/urgent-notifications'));
+export const CertificatesPage = lazy(() => import('src/pages/certificates'));
 
 // ----------------------------------------------------------------------
 
@@ -56,6 +58,8 @@ export function Router() {
         { path: 'app-launches', element: <AppLaunchesView /> },
         { path: 'email-invites', element: <EmailInvitesPage /> },
         { path: 'quiz', element: <QuizView /> },
+        { path: 'urgent-notifications', element: <UrgentNotificationsPage /> },
+        { path: 'certificates', element: <CertificatesPage /> },
       ],
     },
     {
