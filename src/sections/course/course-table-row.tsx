@@ -26,7 +26,6 @@ import { fDate } from 'src/utils/format-time';
 export type CourseProps = {
   id: string;
   title: string;
-  students: string[];
   isPublished: boolean;
   createdAt: string;
 };
@@ -50,7 +49,7 @@ export default function CourseTableRow({
   deleteLoading,
   togglePublishLoading,
 }: CourseTableRowProps) {
-  const { title, students, isPublished, createdAt, id } = row;
+  const { title, isPublished, createdAt, id } = row;
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [openConfirm, setOpenConfirm] = useState(false);
@@ -136,8 +135,6 @@ export default function CourseTableRow({
             </Typography>
           </Stack>
         </TableCell>
-
-        <TableCell>{students.length}</TableCell>
 
         <TableCell>
           <Label color={isPublished ? 'success' : 'error'}>

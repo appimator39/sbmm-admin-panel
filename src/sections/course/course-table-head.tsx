@@ -30,7 +30,6 @@ type Props = {
 
 const headCells = [
   { id: 'title', label: 'Title' },
-  { id: 'students', label: 'Enrolled Students' },
   { id: 'isPublished', label: 'Status' },
   { id: 'createdAt', label: 'Created At' },
 ];

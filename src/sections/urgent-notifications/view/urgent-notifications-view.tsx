@@ -16,6 +16,7 @@ import Alert from '@mui/material/Alert';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Snackbar from '@mui/material/Snackbar';
+import Chip from '@mui/material/Chip';
 
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
@@ -148,6 +149,39 @@ export function UrgentNotificationsView() {
 
   const formatDate = (dateString: string) => new Date(dateString).toLocaleString();
 
+  const renderReadStatus = (isRead: boolean) => {
+    if (isRead) {
+      return (
+        <Chip
+          icon={<Iconify icon="solar:check-circle-bold" />}
+          label="Read"
+          color="success"
+          variant="outlined"
+          size="small"
+          sx={{ 
+            backgroundColor: 'success.lighter',
+            borderColor: 'success.main',
+            '& .MuiChip-icon': { color: 'success.main' }
+          }}
+        />
+      );
+    }
+    return (
+      <Chip
+        icon={<Iconify icon="solar:notification-unread-bold" />}
+        label="Unread"
+        color="warning"
+        variant="outlined"
+        size="small"
+        sx={{ 
+          backgroundColor: 'warning.lighter',
+          borderColor: 'warning.main',
+          '& .MuiChip-icon': { color: 'warning.main' }
+        }}
+      />
+    );
+  };
+
   return (
     <DashboardContent>
       <Box display="flex" alignItems="center" mb={5}>
@@ -185,13 +219,14 @@ export function UrgentNotificationsView() {
                     <TableCell>Description</TableCell>
                     <TableCell>Created By</TableCell>
                     <TableCell>Created</TableCell>
+                    <TableCell align="center">Read Status</TableCell>
                     <TableCell align="right">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {notifications.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} align="center" sx={{ py: 8 }}>
+                      <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
                         <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
                           <Iconify icon="solar:notification-unread-bold" width={64} sx={{ color: 'text.disabled' }} />
                           <Typography variant="h6" color="text.secondary">
@@ -233,6 +268,10 @@ export function UrgentNotificationsView() {
                           <Typography variant="body2">
                             {formatDate(notification.createdAt)}
                           </Typography>
+                        </TableCell>
+
+                        <TableCell align="center">
+                          {renderReadStatus(notification.isRead)}
                         </TableCell>
 
                         <TableCell align="right">

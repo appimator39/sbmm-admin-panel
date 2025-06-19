@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 import httpService from 'src/services/httpService';
 import { getRandomString } from 'src/utils/random-string';
@@ -69,55 +69,48 @@ export const useUsers = (page: number = 0, limit: number = 25, batchIds: string[
   const [deleteUserLoading, setDeleteUserLoading] = useState(false);
   const [deleteUserError, setDeleteUserError] = useState<string | null>(null);
 
-  // Use refs to track previous values and prevent infinite loops
-  const prevParams = useRef<string>('');
+  // Shared function for loading users
+  const loadUsersInternal = useCallback(
+    async (currentPage: number, currentBatchIds: string[]) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const queryParams = new URLSearchParams({
+          page: (currentPage + 1).toString(),
+          limit: limit.toString(),
+        });
 
-  const loadUsers = async (pageNum: number, limitNum: number, batchIdsArr: string[]) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const queryParams = new URLSearchParams({
-        page: (pageNum + 1).toString(),
-        limit: limitNum.toString(),
-      });
+        // Add batch IDs to query parameters if they exist
+        currentBatchIds.forEach(id => {
+          queryParams.append('batchIds', id);
+        });
 
-      batchIdsArr.forEach(id => {
-        queryParams.append('batchIds', id);
-      });
+        const response = await httpService.get<UsersResponse>(
+          `/users/admin/users?${queryParams.toString()}`
+        );
+        setUsers(response.data.data.users);
+        setTotal(response.data.data.pagination.total);
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to fetch users');
+        setUsers([]);
+        setTotal(0);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [limit]
+  );
 
-      const response = await httpService.get<UsersResponse>(
-        `/users/admin/users?${queryParams.toString()}`
-      );
-      setUsers(response.data.data.users);
-      setTotal(response.data.data.pagination.total);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch users');
-      setUsers([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchUsers = useCallback(
+    async (currentPage: number = page, currentBatchIds: string[] = batchIds) => {
+      await loadUsersInternal(currentPage, currentBatchIds);
+    },
+    [page, batchIds, loadUsersInternal]
+  );
 
-  // Use useEffect with proper dependency tracking
   useEffect(() => {
-    // Create a string representation of the current parameters
-    const currentParams = `${page}-${limit}-${JSON.stringify(batchIds)}`;
-    
-    // Only fetch if parameters have actually changed
-    if (currentParams !== prevParams.current) {
-      prevParams.current = currentParams;
-      loadUsers(page, limit, batchIds);
-    }
-  }, [page, limit, batchIds]);
-
-  const fetchUsers = async (currentPage?: number, currentBatchIds?: string[]) => {
-    await loadUsers(
-      currentPage ?? page,
-      limit,
-      currentBatchIds ?? batchIds
-    );
-  };
+    loadUsersInternal(page, batchIds);
+  }, [page, batchIds, loadUsersInternal]);
 
   const addUser = async (data: { name: string; email: string }) => {
     setAddUserLoading(true);
@@ -162,7 +155,7 @@ export const useUsers = (page: number = 0, limit: number = 25, batchIds: string[
         )
       );
     } catch (err) {
-      setBlockUserError(err.response?.data?.message || 'Failed to block user');
+      setBlockUserError(err.response?.data?.message || 'Failed to unblock user');
     } finally {
       setBlockUserLoading(false);
     }
@@ -265,4 +258,3 @@ export const useUsers = (page: number = 0, limit: number = 25, batchIds: string[
     setError,
   };
 };
-

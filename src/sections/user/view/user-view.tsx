@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -12,8 +12,11 @@ import Typography from '@mui/material/Typography';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { useUsers } from 'src/hooks/use-users';
+import { useBatches } from 'src/hooks/use-batches';
 import { DashboardContent } from 'src/layouts/dashboard';
 import httpService from 'src/services/httpService';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
 
 import type { UserProps } from '../user-table-row';
 
@@ -25,6 +28,7 @@ import { UserTableToolbar } from '../user-table-toolbar';
 import { emptyRows, applyFilter, getComparator } from '../utils';
 import { AddUserModal } from './AddUserModal';
 import { BatchFilterModal } from './BatchFilterModal';
+import { BulkHardwareResetModal } from './BulkHardwareResetModal';
 
 // ----------------------------------------------------------------------
 
@@ -104,6 +108,9 @@ function useDebounce<T extends (...args: any[]) => any>(
 
 export function UserView() {
   const table = useTable();
+  const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
+  
+  // Use selectedBatchIds directly - no need for memoization
   const { 
     users, 
     total, 
@@ -125,15 +132,26 @@ export function UserView() {
     setUsers,
     setTotal,
     setError,
-  } = useUsers(table.page, table.rowsPerPage);
+  } = useUsers(table.page, table.rowsPerPage, selectedBatchIds);
+
+  const { batches } = useBatches(0, 100); // Get batches for name mapping
 
   const [filterName, setFilterName] = useState('');
   const [openModal, setOpenModal] = useState(false);
   const [updateUserLoading, setUpdateUserLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [openBatchFilter, setOpenBatchFilter] = useState(false);
-  const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [openBulkHardwareReset, setOpenBulkHardwareReset] = useState(false);
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'info' | 'warning';
+  }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
 
   const handleOpenModal = () => setOpenModal(true);
   const handleCloseModal = () => setOpenModal(false);
@@ -141,85 +159,137 @@ export function UserView() {
   const handleOpenBatchFilter = () => setOpenBatchFilter(true);
   const handleCloseBatchFilter = () => setOpenBatchFilter(false);
 
-  const handleApplyBatchFilter = async (batchIds: string[]) => {
-    setSelectedBatchIds(batchIds);
-    await fetchUsers(table.page, batchIds);
+  const handleOpenBulkHardwareReset = () => setOpenBulkHardwareReset(true);
+  const handleCloseBulkHardwareReset = () => setOpenBulkHardwareReset(false);
+
+  const handleCloseSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
   };
 
-  // Update search query and trigger API search
-  const handleFilterName = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    setFilterName(value);
-    setSearchQuery(value);
+  const handleBulkHardwareResetSuccess = () => {
+    setSnackbar({
+      open: true,
+      message: 'Hardware IDs have been successfully reset for all users!',
+      severity: 'success',
+    });
+  };
+
+  const handleApplyBatchFilter = async (batchIds: string[]) => {
+    setSelectedBatchIds(batchIds);
+    table.onResetPage(); // Reset to first page when applying filter
+  };
+
+  const handleClearBatchFilter = () => {
+    setSelectedBatchIds([]);
     table.onResetPage();
+  };
 
-    // If search query is less than 2 characters, show all users
-    if (value.length < 2) {
-      await fetchUsers(table.page, selectedBatchIds);
-      return;
-    }
+  // Get batch names for selected batch IDs
+  const selectedBatchNames = selectedBatchIds.map(id => {
+    const batch = batches.find(b => b._id === id);
+    return batch ? batch.title : id;
+  });
 
-    // If search query is 2 characters, filter local users
-    if (value.length === 2) {
-      const localMatches = users.filter(user => 
-        user.email.toLowerCase().includes(value.toLowerCase()) ||
-        user.name.toLowerCase().includes(value.toLowerCase())
-      );
-      setUsers(localMatches);
-      setTotal(localMatches.length);
-      return;
-    }
-
-    // If search query is 3 or more characters, search API
-    setSearchLoading(true);
-    try {
-      const response = await httpService.get<SearchResponse>(`/users/admin/find-student?email=${encodeURIComponent(value)}`);
-      const searchResults = response.data.data;
-      
-      // Map the search results to include all required User type fields
-      const mappedApiUsers = searchResults.map(user => ({
-        ...user,
-        status: user.isAccountActive ? 'Active' : 'Blocked',
-        cnicBackImage: null,
-        cnicFrontImage: null,
-        backCNICURL: null,
-        frontCNICURL: null,
-      }));
-
-      // Get local matches and map them to match API format
-      const localMatches = users
-        .filter(user => 
-          user.email.toLowerCase().includes(value.toLowerCase()) ||
-          user.name.toLowerCase().includes(value.toLowerCase())
-        )
-        .map(user => ({
-          ...user,
-          notice: '',
-          status: user.isAccountActive ? 'Active' : 'Blocked',
-          cnicBackImage: null,
-          cnicFrontImage: null,
-          backCNICURL: null,
-          frontCNICURL: null,
-        }));
-
-      // Combine API results with local matches, removing duplicates
-      const combinedUsers = [...mappedApiUsers];
-      localMatches.forEach(localUser => {
-        if (!combinedUsers.some(apiUser => apiUser._id === localUser._id)) {
-          combinedUsers.push(localUser);
-        }
-      });
-
-      setUsers(combinedUsers);
-      setTotal(combinedUsers.length);
-      setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to search students');
-      setUsers([]);
-      setTotal(0);
-    } finally {
-      setSearchLoading(false);
-    }
+  // Update search query and trigger API search
+  // Use the debounce hook you already have for the search functionality
+  // Increase debounce time for search
+  const [debouncedSearch, cancelSearch] = useDebounce(async (value: string) => {
+  // If search query is empty or less than 2 characters, show all users
+  if (!value || value.length < 2) {
+  await fetchUsers(0, selectedBatchIds);
+  return;
+  }
+  
+  // If search query is 2 characters, filter local users only
+  if (value.length === 2) {
+  const localMatches = users.filter(user => 
+  user.email.toLowerCase().includes(value.toLowerCase()) ||
+  user.name.toLowerCase().includes(value.toLowerCase())
+  );
+  setUsers(localMatches);
+  setTotal(localMatches.length);
+  return;
+  }
+  
+  // For 3+ character searches, use a local cache to avoid redundant API calls
+  const searchCacheKey = `search-${value}`;
+  const cachedSearchResults = sessionStorage.getItem(searchCacheKey);
+  
+  if (cachedSearchResults) {
+  const parsedResults = JSON.parse(cachedSearchResults);
+  setUsers(parsedResults.users);
+  setTotal(parsedResults.total);
+  return;
+  }
+  
+  // If no cache hit, proceed with API call
+  setSearchLoading(true);
+  try {
+  const response = await httpService.get<SearchResponse>(`/users/admin/find-student?email=${encodeURIComponent(value)}`);
+  const searchResults = response.data.data;
+  
+  // Process results as before...
+  const mappedApiUsers = searchResults.map(user => ({
+  ...user,
+  status: user.isAccountActive ? 'Active' : 'Blocked',
+  cnicBackImage: null,
+  cnicFrontImage: null,
+  backCNICURL: null,
+  frontCNICURL: null,
+  }));
+  
+  // Get local matches and combine with API results
+  const localMatches = users
+  .filter(user => 
+  user.email.toLowerCase().includes(value.toLowerCase()) ||
+  user.name.toLowerCase().includes(value.toLowerCase())
+  )
+  .map(user => ({
+  ...user,
+  notice: '',
+  status: user.isAccountActive ? 'Active' : 'Blocked',
+  cnicBackImage: null,
+  cnicFrontImage: null,
+  backCNICURL: null,
+  frontCNICURL: null,
+  }));
+  
+  // Combine API results with local matches, removing duplicates
+  const combinedUsers = [...mappedApiUsers];
+  localMatches.forEach(localUser => {
+  if (!combinedUsers.some(apiUser => apiUser._id === localUser._id)) {
+  combinedUsers.push(localUser);
+  }
+  });
+  
+  // Cache the search results
+  sessionStorage.setItem(searchCacheKey, JSON.stringify({
+  users: combinedUsers,
+  total: combinedUsers.length,
+  timestamp: Date.now()
+  }));
+  
+  setUsers(combinedUsers);
+  setTotal(combinedUsers.length);
+  setError(null);
+  } catch (err: any) {
+  setError(err.message || 'Failed to search students');
+  setUsers([]);
+  setTotal(0);
+  } finally {
+  setSearchLoading(false);
+  }
+  }, 1000); // Increase debounce time to 1000ms
+  
+  // Then update your handleFilterName function
+  const handleFilterName = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const value = event.target.value;
+  setFilterName(value);
+  setSearchQuery(value);
+  table.onResetPage();
+  
+  // Use the debounced search
+  debouncedSearch(value);
   };
 
   const dataFiltered = users.map((user) => ({
@@ -245,27 +315,22 @@ export function UserView() {
 
   const handleDeleteUser = async (userId: string) => {
     await deleteUser(userId);
-    await fetchUsers(table.page, selectedBatchIds);
   };
 
   const handleBlockUser = async (userId: string) => {
     await blockUser(userId);
-    await fetchUsers(table.page, selectedBatchIds);
   };
 
   const handleUnblockUser = async (userId: string) => {
     await unblockUser(userId);
-    await fetchUsers(table.page, selectedBatchIds);
   };
 
   const handleResetHardwareIds = async (userId: string, data: any) => {
     await resetHardwareIds(userId, data);
-    await fetchUsers(table.page, selectedBatchIds);
   };
 
   const handleVerificationChange = async (userId: string, verified: boolean) => {
     await toggleIdVerification(userId);
-    await fetchUsers(table.page, selectedBatchIds);
   };
 
   const handleUpdateUser = async (userId: string, data: any) => {
@@ -279,13 +344,11 @@ export function UserView() {
 
   const handleChangePage = useCallback((event: unknown, newPage: number) => {
     table.onChangePage(event, newPage);
-    fetchUsers(newPage, selectedBatchIds);
-  }, [table, fetchUsers, selectedBatchIds]);
+  }, [table]);
 
   const handleChangeRowsPerPage = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     table.onChangeRowsPerPage(event);
-    fetchUsers(0, selectedBatchIds);
-  }, [table, fetchUsers, selectedBatchIds]);
+  }, [table]);
 
   return (
     <DashboardContent>
@@ -293,14 +356,24 @@ export function UserView() {
         <Typography variant="h4" flexGrow={1}>
           Users
         </Typography>
-        <Button
-          variant="contained"
-          color="inherit"
-          startIcon={<Iconify icon="mingcute:add-line" />}
-          onClick={handleOpenModal}
-        >
-          New Users
-        </Button>
+        <Box display="flex" gap={2}>
+          <Button
+            variant="outlined"
+            color="warning"
+            startIcon={<Iconify icon="solar:refresh-bold" />}
+            onClick={handleOpenBulkHardwareReset}
+          >
+            Bulk Hardware Reset
+          </Button>
+          <Button
+            variant="contained"
+            color="inherit"
+            startIcon={<Iconify icon="mingcute:add-line" />}
+            onClick={handleOpenModal}
+          >
+            New Users
+          </Button>
+        </Box>
       </Box>
 
       <Card>
@@ -310,6 +383,9 @@ export function UserView() {
           onFilterName={handleFilterName}
           searchLoading={searchLoading}
           onBatchFilterClick={handleOpenBatchFilter}
+          selectedBatchIds={selectedBatchIds}
+          batchNames={selectedBatchNames}
+          onClearBatchFilter={handleClearBatchFilter}
         />
 
         <Scrollbar>
@@ -383,7 +459,7 @@ export function UserView() {
       <AddUserModal 
         open={openModal} 
         onClose={handleCloseModal} 
-        onUsersAdded={() => fetchUsers(table.page, selectedBatchIds)}
+        onUsersAdded={() => {}}
       />
 
       <BatchFilterModal
@@ -392,6 +468,22 @@ export function UserView() {
         onApplyFilter={handleApplyBatchFilter}
         selectedBatchIds={selectedBatchIds}
       />
+
+      <BulkHardwareResetModal
+        open={openBulkHardwareReset}
+        onClose={handleCloseBulkHardwareReset}
+        onSuccess={handleBulkHardwareResetSuccess}
+      />
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </DashboardContent>
   );
 }

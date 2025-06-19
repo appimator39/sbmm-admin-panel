@@ -200,7 +200,6 @@ export function CourseView() {
                       row={{
                         id: course._id,
                         title: course.title,
-                        students: course.students,
                         isPublished: course.isPublished,
                         createdAt: course.createdAt,
                       }}
