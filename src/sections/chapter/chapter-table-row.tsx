@@ -84,7 +84,9 @@ export default function ChapterTableRow({
     severity: 'success',
   });
   const [openLectureFiles, setOpenLectureFiles] = useState(false);
-  const [selectedLecture, setSelectedLecture] = useState<{ id: string; title: string } | null>(null);
+  const [selectedLecture, setSelectedLecture] = useState<{ id: string; title: string } | null>(
+    null
+  );
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -110,7 +112,7 @@ export default function ChapterTableRow({
   };
 
   const handleOpenLectureConfirm = () => {
-    handleLectureMenuClose();
+    setLectureAnchorEl(null);
     setOpenLectureConfirm(true);
   };
 
@@ -120,6 +122,7 @@ export default function ChapterTableRow({
 
   const handleCloseLectureConfirm = () => {
     setOpenLectureConfirm(false);
+    setSelectedLectureId(null);
   };
 
   const handleCloseSnackbar = () => {
@@ -284,7 +287,9 @@ export default function ChapterTableRow({
                           <MenuItem
                             onClick={() => {
                               if (selectedLectureId) {
-                                const foundLecture = lectures.find(l => l._id === selectedLectureId);
+                                const foundLecture = lectures.find(
+                                  (l) => l._id === selectedLectureId
+                                );
                                 if (foundLecture) {
                                   handleAddLectureFiles(foundLecture._id, foundLecture.title);
                                 }
@@ -359,7 +364,13 @@ export default function ChapterTableRow({
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseLectureConfirm}>Cancel</Button>
-          <Button onClick={handleDeleteLecture} color="error" autoFocus>
+          <Button
+            onClick={handleDeleteLecture}
+            color="error"
+            autoFocus
+            disabled={deleteLectureLoading}
+            startIcon={deleteLectureLoading && <CircularProgress size={20} />}
+          >
             Delete
           </Button>
         </DialogActions>
