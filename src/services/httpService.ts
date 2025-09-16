@@ -7,8 +7,8 @@ import type { AxiosResponse, AxiosRequestConfig } from 'axios';
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
   headers: {
-    'Content-Type': 'application/json'
-  }
+    'Content-Type': 'application/json',
+  },
 });
 
 // Add a request interceptor to include the JWT token in the headers

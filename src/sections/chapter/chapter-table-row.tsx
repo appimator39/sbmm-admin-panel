@@ -25,6 +25,7 @@ import Typography from '@mui/material/Typography';
 import { Iconify } from 'src/components/iconify';
 import { fDate } from 'src/utils/format-time';
 import LectureFilesModal from './view/LectureFilesModal';
+import { AssignLectureModal } from './view/AssignLectureModal';
 
 // ----------------------------------------------------------------------
 
@@ -87,6 +88,11 @@ export default function ChapterTableRow({
   const [selectedLecture, setSelectedLecture] = useState<{ id: string; title: string } | null>(
     null
   );
+  const [openAssignLecture, setOpenAssignLecture] = useState(false);
+  const [selectedAssignLecture, setSelectedAssignLecture] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -180,6 +186,17 @@ export default function ChapterTableRow({
   const handleCloseLectureFiles = () => {
     setOpenLectureFiles(false);
     setSelectedLecture(null);
+  };
+
+  const handleAssignLecture = (lectureId: string, lectureTitle: string) => {
+    handleLectureMenuClose();
+    setSelectedAssignLecture({ id: lectureId, title: lectureTitle });
+    setOpenAssignLecture(true);
+  };
+
+  const handleCloseAssignLecture = () => {
+    setOpenAssignLecture(false);
+    setSelectedAssignLecture(null);
   };
 
   return (
@@ -301,6 +318,23 @@ export default function ChapterTableRow({
                             Manage Files
                           </MenuItem>
 
+                          <MenuItem
+                            onClick={() => {
+                              if (selectedLectureId) {
+                                const foundLecture = lectures.find(
+                                  (l) => l._id === selectedLectureId
+                                );
+                                if (foundLecture) {
+                                  handleAssignLecture(foundLecture._id, foundLecture.title);
+                                }
+                              }
+                            }}
+                            sx={{ color: 'info.main' }}
+                          >
+                            <Iconify icon="mdi:video-plus" sx={{ mr: 2 }} />
+                            Assign Lecture
+                          </MenuItem>
+
                           <MenuItem onClick={handleOpenLectureConfirm} sx={{ color: 'error.main' }}>
                             <Iconify icon="solar:trash-bin-trash-bold" sx={{ mr: 2 }} />
                             Delete
@@ -381,6 +415,13 @@ export default function ChapterTableRow({
         onClose={handleCloseLectureFiles}
         lectureId={selectedLecture?.id || ''}
         lectureTitle={selectedLecture?.title || ''}
+      />
+
+      <AssignLectureModal
+        open={openAssignLecture}
+        onClose={handleCloseAssignLecture}
+        lectureId={selectedAssignLecture?.id || ''}
+        lectureTitle={selectedAssignLecture?.title || ''}
       />
 
       <Snackbar
