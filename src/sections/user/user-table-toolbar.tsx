@@ -17,6 +17,7 @@ interface UserTableToolbarProps {
   onFilterName: (event: React.ChangeEvent<HTMLInputElement>) => void;
   searchLoading: boolean;
   onBatchFilterClick: () => void;
+  unassignedMode: boolean;
   selectedBatchIds: string[];
   batchNames: string[];
   onClearBatchFilter: () => void;
@@ -28,6 +29,7 @@ export function UserTableToolbar({
   onFilterName,
   searchLoading,
   onBatchFilterClick,
+  unassignedMode,
   selectedBatchIds,
   batchNames,
   onClearBatchFilter,
@@ -82,7 +84,7 @@ export function UserTableToolbar({
               },
             }}
           >
-            Batches
+            Filter
             {hasActiveBatchFilter && (
               <Chip
                 size="small"
@@ -101,12 +103,12 @@ export function UserTableToolbar({
       </Stack>
 
       {/* Active Filters Row */}
-      {hasActiveBatchFilter && (
+      {(hasActiveBatchFilter || unassignedMode) && (
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
           <Typography variant="body2" color="text.secondary" sx={{ minWidth: 'fit-content' }}>
-            Filtered by batches:
+            {unassignedMode ? 'Viewing users without batch' : 'Filtered by batches:'}
           </Typography>
-          {batchNames.map((batchName, index) => (
+          {!unassignedMode && batchNames.map((batchName, index) => (
             <Chip
               key={selectedBatchIds[index]}
               label={batchName}
@@ -115,15 +117,17 @@ export function UserTableToolbar({
               color="primary"
             />
           ))}
-          <Button
-            size="small"
-            color="error"
-            startIcon={<Iconify icon="mdi:close" />}
-            onClick={onClearBatchFilter}
-            sx={{ ml: 1 }}
-          >
-            Clear Filter
-          </Button>
+          {!unassignedMode && (
+            <Button
+              size="small"
+              color="error"
+              startIcon={<Iconify icon="mdi:close" />}
+              onClick={onClearBatchFilter}
+              sx={{ ml: 1 }}
+            >
+              Clear Filter
+            </Button>
+          )}
         </Stack>
       )}
     </Stack>

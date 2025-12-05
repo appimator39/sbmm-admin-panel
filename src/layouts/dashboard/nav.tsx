@@ -5,6 +5,8 @@ import Drawer, { drawerClasses } from '@mui/material/Drawer';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import { useTheme } from '@mui/material/styles';
+import { useSelector } from 'react-redux';
+import type { RootState } from 'src/store/store';
 import { Logo } from 'src/components/logo';
 import { Scrollbar } from 'src/components/scrollbar';
 import { RouterLink } from 'src/routes/components';
@@ -106,6 +108,41 @@ export function NavMobile({
 
 export function NavContent({ data, slots, sx }: NavContentProps) {
   const pathname = usePathname();
+  const user = useSelector((state: RootState) => state.user.user);
+  let roleValue = user?.role || '';
+  let perms = user?.permissions || [];
+  let isAdmin = user?.role === 'admin';
+
+  const decodeToken = (t: string) => {
+    try {
+      return JSON.parse(atob(t.split('.')[1]));
+    } catch {
+      return null;
+    }
+  };
+
+  if (!user) {
+    const token = localStorage.getItem('token');
+    if (token) {
+      const payload = decodeToken(token);
+      if (payload) {
+        roleValue = payload.role || '';
+        perms = payload.permissions || [];
+        isAdmin = payload.role === 'admin';
+      }
+    }
+  }
+
+  const hasPermission = (required?: string[]) => {
+    if (!required || required.length === 0) return true;
+    if (isAdmin) return true;
+    return required.some((p) => perms.includes(p));
+  };
+
+  const hasRole = (required?: string[]) => {
+    if (!required || required.length === 0) return true;
+    return required.includes(roleValue || '');
+  };
 
   return (
     <>
@@ -118,6 +155,7 @@ export function NavContent({ data, slots, sx }: NavContentProps) {
           <Box component="ul" gap={0.5} display="flex" flexDirection="column">
             {data.map((item) => {
               const isActived = item.path === pathname;
+              const disabled = !hasRole((item as any).requiredRole) && !hasPermission((item as any).requiredPermissions);
 
               return (
                 <ListItem disableGutters disablePadding key={item.title}>
@@ -125,6 +163,7 @@ export function NavContent({ data, slots, sx }: NavContentProps) {
                     disableGutters
                     component={RouterLink}
                     href={item.path}
+                    disabled={disabled}
                     sx={{
                       pl: 2,
                       py: 1,
@@ -142,6 +181,10 @@ export function NavContent({ data, slots, sx }: NavContentProps) {
                         '&:hover': {
                           bgcolor: 'var(--layout-nav-item-hover-bg)',
                         },
+                      }),
+                      ...(disabled && {
+                        opacity: 0.5,
+                        pointerEvents: 'none',
                       }),
                     }}
                   >

@@ -9,6 +9,7 @@ import { ChapterView } from 'src/sections/chapter/view/chapter-view';
 import { varAlpha } from 'src/theme/styles';
 import AppLaunchesView from 'src/sections/app-launches/view/AppLaunchesView';
 import ResourcesView from 'src/sections/resources/resources-view';
+import PermissionGate from 'src/components/permission-gate';
 
 // ----------------------------------------------------------------------
 
@@ -53,13 +54,37 @@ export function Router() {
         { path: 'user', element: <UserPage /> },
         { path: 'products', element: <ProductsPage /> },
         { path: 'blog', element: <CoursesView /> },
-        { path: 'chapters', element: <ChapterView /> },
-        { path: 'resources', element: <ResourcesView /> },
-        { path: 'app-launches', element: <AppLaunchesView /> },
-        { path: 'email-invites', element: <EmailInvitesPage /> },
+        { path: 'chapters', element: (
+          <PermissionGate requiredPermissions={["content_create","content_update","content_delete","manage_lecture","upload_lecture","upload_lecture_files"]}>
+            <ChapterView />
+          </PermissionGate>
+        ) },
+        { path: 'resources', element: (
+          <PermissionGate requiredPermissions={["resources_manage","resources_update_batches"]}>
+            <ResourcesView />
+          </PermissionGate>
+        ) },
+        { path: 'app-launches', element: (
+          <PermissionGate requiredRole={["admin"]}>
+            <AppLaunchesView />
+          </PermissionGate>
+        ) },
+        { path: 'email-invites', element: (
+          <PermissionGate requiredRole={["admin"]}>
+            <EmailInvitesPage />
+          </PermissionGate>
+        ) },
         { path: 'quiz', element: <QuizView /> },
-        { path: 'urgent-notifications', element: <UrgentNotificationsPage /> },
-        { path: 'certificates', element: <CertificatesPage /> },
+        { path: 'urgent-notifications', element: (
+          <PermissionGate requiredRole={["admin"]}>
+            <UrgentNotificationsPage />
+          </PermissionGate>
+        ) },
+        { path: 'certificates', element: (
+          <PermissionGate requiredPermissions={["certificate_view_admin"]}>
+            <CertificatesPage />
+          </PermissionGate>
+        ) },
       ],
     },
     {

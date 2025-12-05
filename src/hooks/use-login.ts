@@ -29,16 +29,8 @@ export const useLogin = () => {
         deviceType: 'MACOS' // Static device type
       };
       const response = await httpService.post<LoginResponse>('/auth/login', loginPayload);
-      // Check if the user's role is admin before saving the token
-      if (response.data.data.user.role === 'admin') {
-        localStorage.setItem('token', response.data.data.token);
-        dispatch(loginSuccess({ token: response.data.data.token, user: response.data.data.user }));
-      } else {
-        const errorMessage = 'Only admin users can log in.';
-        setError(errorMessage);
-        dispatch(loginFailure(errorMessage));
-        throw new Error(errorMessage);
-      }
+      localStorage.setItem('token', response.data.data.token);
+      dispatch(loginSuccess({ token: response.data.data.token, user: response.data.data.user }));
       return response.data;
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Login failed';

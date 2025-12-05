@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 import httpService from 'src/services/httpService';
 import { getRandomString } from 'src/utils/random-string';
@@ -31,6 +31,7 @@ interface User {
   cnicFrontImage: string | null;
   backCNICURL: string | null;
   frontCNICURL: string | null;
+  permissions?: string[];
 }
 
 interface UsersResponse {
@@ -55,6 +56,21 @@ interface SearchUsersResponse {
   };
 }
 
+interface PermissionsCatalogResponse {
+  statusCode: number;
+  message: string;
+  data: {
+    permissions: string[];
+    catalog: { key: string; module: string; label: string }[];
+  };
+}
+
+interface AssignRevokeResponse {
+  statusCode: number;
+  message: string;
+  data: { userId: string; permissions: string[] };
+}
+
 export const useUsers = (page: number = 0, limit: number = 25, batchIds: string[] = []) => {
   const [users, setUsers] = useState<User[]>([]);
   const [total, setTotal] = useState(0);
@@ -68,55 +84,81 @@ export const useUsers = (page: number = 0, limit: number = 25, batchIds: string[
   const [resetHardwareError, setResetHardwareError] = useState<string | null>(null);
   const [deleteUserLoading, setDeleteUserLoading] = useState(false);
   const [deleteUserError, setDeleteUserError] = useState<string | null>(null);
+  const [unassignedMode, setUnassignedMode] = useState(false);
 
   // Use refs to track previous values and prevent infinite loops
   const prevParams = useRef<string>('');
+  const requestIdRef = useRef(0);
 
-  const loadUsers = async (pageNum: number, limitNum: number, batchIdsArr: string[]) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const queryParams = new URLSearchParams({
-        page: (pageNum + 1).toString(),
-        limit: limitNum.toString(),
-      });
+  const loadUsers = useCallback(
+    async (pageNum: number, limitNum: number, batchIdsArr: string[]) => {
+      requestIdRef.current += 1;
+      const reqId = requestIdRef.current;
+      setLoading(true);
+      setError(null);
+      try {
+        const queryParams = new URLSearchParams({
+          page: (pageNum + 1).toString(),
+          limit: limitNum.toString(),
+        });
 
-      batchIdsArr.forEach(id => {
-        queryParams.append('batchIds', id);
-      });
+        batchIdsArr.forEach((id) => {
+          queryParams.append('batchIds', id);
+        });
 
-      const response = await httpService.get<UsersResponse>(
-        `/users/admin/users?${queryParams.toString()}`
-      );
-      setUsers(response.data.data.users);
-      setTotal(response.data.data.pagination.total);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch users');
-      setUsers([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
+        const url = unassignedMode
+          ? `/users/admin/users-without-batch?${queryParams.toString()}`
+          : `/users/admin/users?${queryParams.toString()}`;
+        let response;
+        try {
+          response = await httpService.get<UsersResponse>(url);
+        } catch (err) {
+          if (err.response?.status === 404) {
+            response = await httpService.get<UsersResponse>(`/api${url}`);
+          } else {
+            throw err;
+          }
+        }
+        if (reqId === requestIdRef.current) {
+          setUsers(response.data.data.users);
+          setTotal(response.data.data.pagination.total);
+        }
+      } catch (err) {
+        if (reqId === requestIdRef.current) {
+          setError(err.response?.data?.message || 'Failed to fetch users');
+          setUsers([]);
+          setTotal(0);
+        }
+      } finally {
+        if (reqId === requestIdRef.current) {
+          setLoading(false);
+        }
+      }
+    },
+    [unassignedMode]
+  );
 
   // Use useEffect with proper dependency tracking
   useEffect(() => {
-    // Create a string representation of the current parameters
-    const currentParams = `${page}-${limit}-${JSON.stringify(batchIds)}`;
-    
-    // Only fetch if parameters have actually changed
+    const currentParams = `${page}-${limit}-${JSON.stringify(batchIds)}-${unassignedMode}`;
     if (currentParams !== prevParams.current) {
       prevParams.current = currentParams;
       loadUsers(page, limit, batchIds);
     }
-  }, [page, limit, batchIds]);
+  }, [page, limit, batchIds, unassignedMode, loadUsers]);
 
   const fetchUsers = async (currentPage?: number, currentBatchIds?: string[]) => {
-    await loadUsers(
-      currentPage ?? page,
-      limit,
-      currentBatchIds ?? batchIds
-    );
+    await loadUsers(currentPage ?? page, limit, currentBatchIds ?? batchIds);
+  };
+
+  const enableUnassignedMode = async () => {
+    setUnassignedMode(true);
+    await loadUsers(0, limit, []);
+  };
+
+  const disableUnassignedMode = async () => {
+    setUnassignedMode(false);
+    await loadUsers(0, limit, batchIds);
   };
 
   const addUser = async (data: { name: string; email: string }) => {
@@ -195,7 +237,9 @@ export const useUsers = (page: number = 0, limit: number = 25, batchIds: string[
 
   const searchUsers = async (query: string) => {
     try {
-      const response = await httpService.get<SearchUsersResponse>(`/users/admin/search?email=${encodeURIComponent(query)}`);
+      const response = await httpService.get<SearchUsersResponse>(
+        `/users/admin/search?email=${encodeURIComponent(query)}`
+      );
       return response.data.data.users;
     } catch (err) {
       throw new Error(err.response?.data?.message || 'Failed to search users');
@@ -204,7 +248,9 @@ export const useUsers = (page: number = 0, limit: number = 25, batchIds: string[
 
   const findStudentByEmail = async (email: string) => {
     try {
-      const response = await httpService.get<{ data: User }>(`/users/admin/find-student?email=${encodeURIComponent(email)}`);
+      const response = await httpService.get<{ data: User }>(
+        `/users/admin/find-student?email=${encodeURIComponent(email)}`
+      );
       return response.data.data;
     } catch (err) {
       throw new Error(err.response?.data?.message || 'Failed to find student');
@@ -228,13 +274,94 @@ export const useUsers = (page: number = 0, limit: number = 25, batchIds: string[
     try {
       await httpService.put(`/users/update/${userId}`, data);
       setUsers((prevUsers) =>
-        prevUsers.map((user) =>
-          user._id === userId ? { ...user, ...data } : user
-        )
+        prevUsers.map((user) => (user._id === userId ? { ...user, ...data } : user))
       );
     } catch (err) {
       throw new Error(err.response?.data?.message || 'Failed to update user');
     }
+  };
+
+  const fetchPermissionsCatalog = async () => {
+    try {
+      const response = await httpService.get<PermissionsCatalogResponse>('/auth/all-permissions');
+      return response.data.data;
+    } catch (err) {
+      if (err.response?.status === 404) {
+        const alt = await httpService.get<PermissionsCatalogResponse>('/api/auth/all-permissions');
+        return alt.data.data;
+      }
+      throw err;
+    }
+  };
+
+  const assignPermissions = async (
+    userId: string,
+    permissions: string[],
+    role?: 'admin' | 'instructor' | 'user'
+  ) => {
+    let response;
+    try {
+      response = await httpService.patch<AssignRevokeResponse>(
+        `/users/super-admin/assign-permissions/${userId}`,
+        { permissions, role }
+      );
+    } catch (err) {
+      if (err.response?.status === 404) {
+        response = await httpService.patch<AssignRevokeResponse>(
+          `/api/users/super-admin/assign-permissions/${userId}`,
+          { permissions, role }
+        );
+      } else {
+        throw err;
+      }
+    }
+    const newPerms = response!.data.data.permissions;
+    setUsers((prev) => prev.map((u) => (u._id === userId ? { ...u, permissions: newPerms } : u)));
+    return newPerms;
+  };
+
+  const revokePermissions = async (
+    userId: string,
+    permissions: string[],
+    role?: 'admin' | 'instructor' | 'user'
+  ) => {
+    let response;
+    try {
+      response = await httpService.patch<AssignRevokeResponse>(
+        `/users/super-admin/revoke-permissions/${userId}`,
+        { permissions, role }
+      );
+    } catch (err) {
+      if (err.response?.status === 404) {
+        response = await httpService.patch<AssignRevokeResponse>(
+          `/api/users/super-admin/revoke-permissions/${userId}`,
+          { permissions, role }
+        );
+      } else {
+        throw err;
+      }
+    }
+    const newPerms = response!.data.data.permissions;
+    setUsers((prev) => prev.map((u) => (u._id === userId ? { ...u, permissions: newPerms } : u)));
+    return newPerms;
+  };
+
+  const setRoleForUser = async (userId: string, role: 'admin' | 'instructor' | 'user') => {
+    let response;
+    try {
+      response = await httpService.patch(`/users/admin/set-role/${userId}`, { role });
+    } catch (err) {
+      if (err.response?.status === 404) {
+        response = await httpService.patch(`/api/users/admin/set-role/${userId}`, { role });
+      } else {
+        throw err;
+      }
+    }
+    const updated = (response!.data as { data?: Partial<User> }).data;
+    setUsers((prev) =>
+      prev.map((u) => (u._id === userId ? { ...u, role: updated?.role || role } : u))
+    );
+    return updated?.role || role;
   };
 
   return {
@@ -263,6 +390,12 @@ export const useUsers = (page: number = 0, limit: number = 25, batchIds: string[
     setUsers,
     setTotal,
     setError,
+    unassignedMode,
+    enableUnassignedMode,
+    disableUnassignedMode,
+    fetchPermissionsCatalog,
+    assignPermissions,
+    revokePermissions,
+    setRoleForUser,
   };
 };
-

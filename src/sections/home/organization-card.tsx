@@ -174,7 +174,7 @@ export function OrganizationCard() {
         <CardHeader
           title="Organization Information"
           action={
-            user?.role === 'admin' && (
+            ((user?.role === 'admin') || (user?.permissions || []).includes('org_info_manage')) && (
               <IconButton
                 onClick={() => setIsEditing(true)}
                 sx={{

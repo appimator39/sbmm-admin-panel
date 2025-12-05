@@ -16,6 +16,7 @@ import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 import { ViewCnicModal } from './view/ViewCnicModal';
 import { EditUserModal } from './view/EditUserModal';
+import { ManagePermissionsModal } from './view/ManagePermissionsModal';
 
 // ----------------------------------------------------------------------
 
@@ -36,6 +37,7 @@ export type UserProps = {
   rollNo: string;
   facebookProfileUrl: string;
   address: string;
+  permissions?: string[];
 };
 
 type UserTableRowProps = {
@@ -78,6 +80,7 @@ export function UserTableRow({
   const [userStatus, setUserStatus] = useState(row.status);
   const [openCnicModal, setOpenCnicModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
+  const [openManagePermissions, setOpenManagePermissions] = useState(false);
 
   const handleOpenPopover = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     setOpenPopover(event.currentTarget);
@@ -216,6 +219,13 @@ export function UserTableRow({
           }}
         >
           <MenuItem onClick={() => {
+            setOpenManagePermissions(true);
+            handleClosePopover();
+          }}>
+            <Iconify icon="mdi:shield-account" />
+            Permissions
+          </MenuItem>
+          <MenuItem onClick={() => {
             setOpenEditModal(true);
             handleClosePopover();
           }}>
@@ -305,6 +315,14 @@ export function UserTableRow({
         user={row}
         onUpdate={handleUpdateUser}
         loading={updateUserLoading}
+      />
+
+      <ManagePermissionsModal
+        open={openManagePermissions}
+        onClose={() => setOpenManagePermissions(false)}
+        userId={row.id}
+        currentRole={row.role as any}
+        currentPermissions={row.permissions || []}
       />
     </>
   );

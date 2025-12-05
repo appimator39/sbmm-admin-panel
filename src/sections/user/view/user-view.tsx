@@ -97,11 +97,14 @@ function useDebounce<T extends (...args: any[]) => any>(
     }
   }, []);
 
-  useEffect(() => () => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-  }, []);
+  useEffect(
+    () => () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    },
+    []
+  );
 
   return [debouncedCallback, cancel];
 }
@@ -109,16 +112,16 @@ function useDebounce<T extends (...args: any[]) => any>(
 export function UserView() {
   const table = useTable();
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
-  
+
   // Use selectedBatchIds directly - no need for memoization
-  const { 
-    users, 
-    total, 
-    loading, 
-    error, 
-    deleteUser, 
-    blockUser, 
-    unblockUser, 
+  const {
+    users,
+    total,
+    loading,
+    error,
+    deleteUser,
+    blockUser,
+    unblockUser,
     resetHardwareIds,
     blockUserLoading,
     blockUserError,
@@ -132,6 +135,9 @@ export function UserView() {
     setUsers,
     setTotal,
     setError,
+    unassignedMode,
+    enableUnassignedMode,
+    disableUnassignedMode,
   } = useUsers(table.page, table.rowsPerPage, selectedBatchIds);
 
   const { batches } = useBatches(0, 100); // Get batches for name mapping
@@ -163,7 +169,7 @@ export function UserView() {
   const handleCloseBulkHardwareReset = () => setOpenBulkHardwareReset(false);
 
   const handleCloseSnackbar = () => {
-    setSnackbar(prev => ({ ...prev, open: false }));
+    setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
   const handleBulkHardwareResetSuccess = () => {
@@ -185,8 +191,8 @@ export function UserView() {
   };
 
   // Get batch names for selected batch IDs
-  const selectedBatchNames = selectedBatchIds.map(id => {
-    const batch = batches.find(b => b._id === id);
+  const selectedBatchNames = selectedBatchIds.map((id) => {
+    const batch = batches.find((b) => b._id === id);
     return batch ? batch.title : id;
   });
 
@@ -194,102 +200,109 @@ export function UserView() {
   // Use the debounce hook you already have for the search functionality
   // Increase debounce time for search
   const [debouncedSearch, cancelSearch] = useDebounce(async (value: string) => {
-  // If search query is empty or less than 2 characters, show all users
-  if (!value || value.length < 2) {
-  await fetchUsers(0, selectedBatchIds);
-  return;
-  }
-  
-  // If search query is 2 characters, filter local users only
-  if (value.length === 2) {
-  const localMatches = users.filter(user => 
-  user.email.toLowerCase().includes(value.toLowerCase()) ||
-  user.name.toLowerCase().includes(value.toLowerCase())
-  );
-  setUsers(localMatches);
-  setTotal(localMatches.length);
-  return;
-  }
-  
-  // For 3+ character searches, use a local cache to avoid redundant API calls
-  const searchCacheKey = `search-${value}`;
-  const cachedSearchResults = sessionStorage.getItem(searchCacheKey);
-  
-  if (cachedSearchResults) {
-  const parsedResults = JSON.parse(cachedSearchResults);
-  setUsers(parsedResults.users);
-  setTotal(parsedResults.total);
-  return;
-  }
-  
-  // If no cache hit, proceed with API call
-  setSearchLoading(true);
-  try {
-  const response = await httpService.get<SearchResponse>(`/users/admin/find-student?email=${encodeURIComponent(value)}`);
-  const searchResults = response.data.data;
-  
-  // Process results as before...
-  const mappedApiUsers = searchResults.map(user => ({
-  ...user,
-  status: user.isAccountActive ? 'Active' : 'Blocked',
-  cnicBackImage: null,
-  cnicFrontImage: null,
-  backCNICURL: null,
-  frontCNICURL: null,
-  }));
-  
-  // Get local matches and combine with API results
-  const localMatches = users
-  .filter(user => 
-  user.email.toLowerCase().includes(value.toLowerCase()) ||
-  user.name.toLowerCase().includes(value.toLowerCase())
-  )
-  .map(user => ({
-  ...user,
-  notice: '',
-  status: user.isAccountActive ? 'Active' : 'Blocked',
-  cnicBackImage: null,
-  cnicFrontImage: null,
-  backCNICURL: null,
-  frontCNICURL: null,
-  }));
-  
-  // Combine API results with local matches, removing duplicates
-  const combinedUsers = [...mappedApiUsers];
-  localMatches.forEach(localUser => {
-  if (!combinedUsers.some(apiUser => apiUser._id === localUser._id)) {
-  combinedUsers.push(localUser);
-  }
-  });
-  
-  // Cache the search results
-  sessionStorage.setItem(searchCacheKey, JSON.stringify({
-  users: combinedUsers,
-  total: combinedUsers.length,
-  timestamp: Date.now()
-  }));
-  
-  setUsers(combinedUsers);
-  setTotal(combinedUsers.length);
-  setError(null);
-  } catch (err: any) {
-  setError(err.message || 'Failed to search students');
-  setUsers([]);
-  setTotal(0);
-  } finally {
-  setSearchLoading(false);
-  }
+    // If search query is empty or less than 2 characters, show all users
+    if (!value || value.length < 2) {
+      await fetchUsers(0, selectedBatchIds);
+      return;
+    }
+
+    // If search query is 2 characters, filter local users only
+    if (value.length === 2) {
+      const localMatches = users.filter(
+        (user) =>
+          user.email.toLowerCase().includes(value.toLowerCase()) ||
+          user.name.toLowerCase().includes(value.toLowerCase())
+      );
+      setUsers(localMatches);
+      setTotal(localMatches.length);
+      return;
+    }
+
+    // For 3+ character searches, use a local cache to avoid redundant API calls
+    const searchCacheKey = `search-${value}`;
+    const cachedSearchResults = sessionStorage.getItem(searchCacheKey);
+
+    if (cachedSearchResults) {
+      const parsedResults = JSON.parse(cachedSearchResults);
+      setUsers(parsedResults.users);
+      setTotal(parsedResults.total);
+      return;
+    }
+
+    // If no cache hit, proceed with API call
+    setSearchLoading(true);
+    try {
+      const response = await httpService.get<SearchResponse>(
+        `/users/admin/find-student?email=${encodeURIComponent(value)}`
+      );
+      const searchResults = response.data.data;
+
+      // Process results as before...
+      const mappedApiUsers = searchResults.map((user) => ({
+        ...user,
+        status: user.isAccountActive ? 'Active' : 'Blocked',
+        cnicBackImage: null,
+        cnicFrontImage: null,
+        backCNICURL: null,
+        frontCNICURL: null,
+      }));
+
+      // Get local matches and combine with API results
+      const localMatches = users
+        .filter(
+          (user) =>
+            user.email.toLowerCase().includes(value.toLowerCase()) ||
+            user.name.toLowerCase().includes(value.toLowerCase())
+        )
+        .map((user) => ({
+          ...user,
+          notice: '',
+          status: user.isAccountActive ? 'Active' : 'Blocked',
+          cnicBackImage: null,
+          cnicFrontImage: null,
+          backCNICURL: null,
+          frontCNICURL: null,
+        }));
+
+      // Combine API results with local matches, removing duplicates
+      const combinedUsers = [...mappedApiUsers];
+      localMatches.forEach((localUser) => {
+        if (!combinedUsers.some((apiUser) => apiUser._id === localUser._id)) {
+          combinedUsers.push(localUser);
+        }
+      });
+
+      // Cache the search results
+      sessionStorage.setItem(
+        searchCacheKey,
+        JSON.stringify({
+          users: combinedUsers,
+          total: combinedUsers.length,
+          timestamp: Date.now(),
+        })
+      );
+
+      setUsers(combinedUsers);
+      setTotal(combinedUsers.length);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || 'Failed to search students');
+      setUsers([]);
+      setTotal(0);
+    } finally {
+      setSearchLoading(false);
+    }
   }, 1000); // Increase debounce time to 1000ms
-  
+
   // Then update your handleFilterName function
   const handleFilterName = (event: React.ChangeEvent<HTMLInputElement>) => {
-  const value = event.target.value;
-  setFilterName(value);
-  setSearchQuery(value);
-  table.onResetPage();
-  
-  // Use the debounced search
-  debouncedSearch(value);
+    const value = event.target.value;
+    setFilterName(value);
+    setSearchQuery(value);
+    table.onResetPage();
+
+    // Use the debounced search
+    debouncedSearch(value);
   };
 
   const dataFiltered = users.map((user) => ({
@@ -309,6 +322,7 @@ export function UserView() {
     rollNo: user.rollNo || '',
     facebookProfileUrl: user.facebookProfileUrl || '',
     address: user.address || '',
+    permissions: user.permissions || [],
   }));
 
   const notFound = !dataFiltered.length && !!filterName && !searchLoading;
@@ -342,13 +356,19 @@ export function UserView() {
     }
   };
 
-  const handleChangePage = useCallback((event: unknown, newPage: number) => {
-    table.onChangePage(event, newPage);
-  }, [table]);
+  const handleChangePage = useCallback(
+    (event: unknown, newPage: number) => {
+      table.onChangePage(event, newPage);
+    },
+    [table]
+  );
 
-  const handleChangeRowsPerPage = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    table.onChangeRowsPerPage(event);
-  }, [table]);
+  const handleChangeRowsPerPage = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      table.onChangeRowsPerPage(event);
+    },
+    [table]
+  );
 
   return (
     <DashboardContent>
@@ -383,6 +403,7 @@ export function UserView() {
           onFilterName={handleFilterName}
           searchLoading={searchLoading}
           onBatchFilterClick={handleOpenBatchFilter}
+          unassignedMode={unassignedMode}
           selectedBatchIds={selectedBatchIds}
           batchNames={selectedBatchNames}
           onClearBatchFilter={handleClearBatchFilter}
@@ -456,17 +477,26 @@ export function UserView() {
         />
       </Card>
 
-      <AddUserModal 
-        open={openModal} 
-        onClose={handleCloseModal} 
-        onUsersAdded={() => {}}
-      />
+      <AddUserModal open={openModal} onClose={handleCloseModal} onUsersAdded={() => {}} />
 
       <BatchFilterModal
         open={openBatchFilter}
         onClose={handleCloseBatchFilter}
         onApplyFilter={handleApplyBatchFilter}
         selectedBatchIds={selectedBatchIds}
+        unassignedMode={unassignedMode}
+        onApplyUnassignedMode={async (enabled: boolean) => {
+          cancelSearch();
+          setFilterName('');
+          setSearchQuery('');
+          if (enabled) {
+            setSelectedBatchIds([]);
+            await enableUnassignedMode();
+          } else {
+            await disableUnassignedMode();
+          }
+          table.onResetPage();
+        }}
       />
 
       <BulkHardwareResetModal
@@ -475,11 +505,7 @@ export function UserView() {
         onSuccess={handleBulkHardwareResetSuccess}
       />
 
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-      >
+      <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}>
         <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
           {snackbar.message}
         </Alert>
