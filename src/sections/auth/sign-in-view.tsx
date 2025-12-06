@@ -31,12 +31,12 @@ export function SignInView() {
       const loginData = {
         ...data,
         hardwareId: 'sbmm-dashboard-123',
-        deviceType: 'MACOS'
+        deviceType: 'MACOS',
       };
       await login(loginData);
       router.push('/');
-    } catch (err) {
-      // Handle login error if needed
+    } catch (err: any) {
+      // Error is handled in useLogin hook
     }
   };
 

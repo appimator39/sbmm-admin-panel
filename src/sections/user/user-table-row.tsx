@@ -16,7 +16,6 @@ import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 import { ViewCnicModal } from './view/ViewCnicModal';
 import { EditUserModal } from './view/EditUserModal';
-import { ManagePermissionsModal } from './view/ManagePermissionsModal';
 
 // ----------------------------------------------------------------------
 
@@ -57,10 +56,10 @@ type UserTableRowProps = {
   updateUserLoading: boolean;
 };
 
-export function UserTableRow({ 
-  row, 
-  selected, 
-  onSelectRow, 
+export function UserTableRow({
+  row,
+  selected,
+  onSelectRow,
   onDeleteUser,
   onBlockUser,
   onUnblockUser,
@@ -80,7 +79,6 @@ export function UserTableRow({
   const [userStatus, setUserStatus] = useState(row.status);
   const [openCnicModal, setOpenCnicModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
-  const [openManagePermissions, setOpenManagePermissions] = useState(false);
 
   const handleOpenPopover = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     setOpenPopover(event.currentTarget);
@@ -218,25 +216,22 @@ export function UserTableRow({
             },
           }}
         >
-          <MenuItem onClick={() => {
-            setOpenManagePermissions(true);
-            handleClosePopover();
-          }}>
-            <Iconify icon="mdi:shield-account" />
-            Permissions
-          </MenuItem>
-          <MenuItem onClick={() => {
-            setOpenEditModal(true);
-            handleClosePopover();
-          }}>
+          <MenuItem
+            onClick={() => {
+              setOpenEditModal(true);
+              handleClosePopover();
+            }}
+          >
             <Iconify icon="eva:edit-2-fill" />
             Edit
           </MenuItem>
 
-          <MenuItem onClick={() => {
-            setOpenCnicModal(true);
-            handleClosePopover();
-          }}>
+          <MenuItem
+            onClick={() => {
+              setOpenCnicModal(true);
+              handleClosePopover();
+            }}
+          >
             <Iconify icon="mdi:id-card" />
             View CNIC
           </MenuItem>
@@ -315,14 +310,6 @@ export function UserTableRow({
         user={row}
         onUpdate={handleUpdateUser}
         loading={updateUserLoading}
-      />
-
-      <ManagePermissionsModal
-        open={openManagePermissions}
-        onClose={() => setOpenManagePermissions(false)}
-        userId={row.id}
-        currentRole={row.role as any}
-        currentPermissions={row.permissions || []}
       />
     </>
   );
