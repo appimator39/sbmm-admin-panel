@@ -3,14 +3,30 @@ import { useDispatch } from 'react-redux';
 
 import httpService from 'src/services/httpService';
 import { loginStart, loginSuccess, loginFailure } from 'src/store/userSlice';
+import { SUPER_ADMIN_EMAIL } from 'src/constants/auth';
 
-import type { LoginResponse } from 'src/models/loginResponse';
+import type { LoginResponse, User } from 'src/models/loginResponse';
 
 interface LoginData {
   email: string;
   password: string;
   hardwareId: string;
   deviceType: string;
+}
+
+// Admin login response structure
+interface AdminLoginResponse {
+  statusCode: number;
+  message: string;
+  data: {
+    token: string;
+    user?: User;
+    userId?: string;
+    email?: string;
+    role?: string;
+    name?: string;
+    permissions?: string[];
+  };
 }
 
 export const useLogin = () => {
@@ -22,18 +38,59 @@ export const useLogin = () => {
     dispatch(loginStart());
     setLoading(true);
     setError(null);
+
+    const email = data.email.toLowerCase().trim();
+    const isSuperAdmin = email === SUPER_ADMIN_EMAIL;
+
     try {
-      const loginPayload = {
-        ...data,
-        hardwareId: 'sbmm-dashboard-123', // Static random string
-        deviceType: 'MACOS' // Static device type
+      let token: string;
+      let user: User;
+
+      if (isSuperAdmin) {
+        // Super admin login via /auth/login
+        const loginPayload = {
+          ...data,
+          hardwareId: 'sbmm-dashboard-123',
+          deviceType: 'MACOS',
+        };
+
+        const response = await httpService.post<LoginResponse>('/auth/login', loginPayload);
+        token = response.data.data.token;
+        user = response.data.data.user;
+      } else {
+        // Sub-admin login via /admin-permissions/login
+        const adminResponse = await httpService.post<AdminLoginResponse>(
+          '/admin-permissions/login',
+          {
+            email: data.email,
+            password: data.password,
+          }
+        );
+
+        const responseData = adminResponse.data.data;
+        token = responseData.token;
+
+        // Build user object from response
+        user = responseData.user || {
+          userId: responseData.userId || '',
+          email: responseData.email || data.email,
+          role: responseData.role || 'admin',
+          name: responseData.name || data.email.split('@')[0],
+          userAvatar: '',
+          permissions: responseData.permissions || [],
+        };
+      }
+
+      localStorage.setItem('token', token);
+      dispatch(loginSuccess({ token, user }));
+
+      return {
+        statusCode: 200,
+        message: 'Login successful',
+        data: { token, user },
       };
-      const response = await httpService.post<LoginResponse>('/auth/login', loginPayload);
-      localStorage.setItem('token', response.data.data.token);
-      dispatch(loginSuccess({ token: response.data.data.token, user: response.data.data.user }));
-      return response.data;
-    } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Login failed';
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || 'Invalid credentials';
       setError(errorMessage);
       dispatch(loginFailure(errorMessage));
       throw err;

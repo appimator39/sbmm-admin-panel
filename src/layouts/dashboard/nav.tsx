@@ -12,6 +12,7 @@ import { Scrollbar } from 'src/components/scrollbar';
 import { RouterLink } from 'src/routes/components';
 import { usePathname } from 'src/routes/hooks';
 import { varAlpha } from 'src/theme/styles';
+import { SUPER_ADMIN_EMAIL } from 'src/constants/auth';
 
 import type { Theme, SxProps, Breakpoint } from '@mui/material/styles';
 
@@ -109,9 +110,8 @@ export function NavMobile({
 export function NavContent({ data, slots, sx }: NavContentProps) {
   const pathname = usePathname();
   const user = useSelector((state: RootState) => state.user.user);
-  let roleValue = user?.role || '';
+  let emailValue = user?.email || '';
   let perms = user?.permissions || [];
-  let isAdmin = user?.role === 'admin';
 
   const decodeToken = (t: string) => {
     try {
@@ -126,22 +126,19 @@ export function NavContent({ data, slots, sx }: NavContentProps) {
     if (token) {
       const payload = decodeToken(token);
       if (payload) {
-        roleValue = payload.role || '';
+        emailValue = payload.email || '';
         perms = payload.permissions || [];
-        isAdmin = payload.role === 'admin';
       }
     }
   }
 
+  // Super-admin: check by email (god mode - full access to everything)
+  const isSuperAdmin = emailValue.toLowerCase() === SUPER_ADMIN_EMAIL;
+
   const hasPermission = (required?: string[]) => {
     if (!required || required.length === 0) return true;
-    if (isAdmin) return true;
+    if (isSuperAdmin) return true;
     return required.some((p) => perms.includes(p));
-  };
-
-  const hasRole = (required?: string[]) => {
-    if (!required || required.length === 0) return true;
-    return required.includes(roleValue || '');
   };
 
   return (
@@ -155,7 +152,23 @@ export function NavContent({ data, slots, sx }: NavContentProps) {
           <Box component="ul" gap={0.5} display="flex" flexDirection="column">
             {data.map((item) => {
               const isActived = item.path === pathname;
-              const disabled = !hasRole((item as any).requiredRole) && !hasPermission((item as any).requiredPermissions);
+              const navItem = item as any;
+
+              // Check if item is super admin only
+              if (navItem.superAdminOnly && !isSuperAdmin) {
+                return null;
+              }
+
+              // Check permissions
+              const canAccessByPermission = hasPermission(navItem.requiredPermissions);
+
+              // Hide items user doesn't have permission to access
+              // Show if: no requirements, OR has required permissions
+              const hasAccess = !navItem.requiredPermissions || canAccessByPermission;
+
+              if (!hasAccess) {
+                return null;
+              }
 
               return (
                 <ListItem disableGutters disablePadding key={item.title}>
@@ -163,7 +176,6 @@ export function NavContent({ data, slots, sx }: NavContentProps) {
                     disableGutters
                     component={RouterLink}
                     href={item.path}
-                    disabled={disabled}
                     sx={{
                       pl: 2,
                       py: 1,
@@ -181,10 +193,6 @@ export function NavContent({ data, slots, sx }: NavContentProps) {
                         '&:hover': {
                           bgcolor: 'var(--layout-nav-item-hover-bg)',
                         },
-                      }),
-                      ...(disabled && {
-                        opacity: 0.5,
-                        pointerEvents: 'none',
                       }),
                     }}
                   >
