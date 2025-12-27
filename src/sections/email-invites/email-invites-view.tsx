@@ -29,6 +29,7 @@ import 'react-quill/dist/quill.snow.css';
 import httpService from 'src/services/httpService';
 
 export function EmailInvitesView() {
+  const NO_BATCH_SENTINEL = '__USERS_WITHOUT_BATCHES__';
   const [selectedTab, setSelectedTab] = useState(0);
   const [selectedBatch, setSelectedBatch] = useState('');
   const [fileError, setFileError] = useState<string | null>(null);
@@ -131,23 +132,27 @@ export function EmailInvitesView() {
         description: string;
         batch_id?: string;
         emails?: string[];
+        users_without_batches?: boolean;
       } = {
         subject: subject.trim(),
         description: body.trim(),
       };
 
       if (selectedTab === 0) {
-        // Get emails from selected batch
-        const batch = batches.find(b => b._id === selectedBatch);
-        if (batch) {
-          payload.batch_id = selectedBatch;
+        if (selectedBatch === NO_BATCH_SENTINEL) {
+          payload.users_without_batches = true;
+        } else {
+          const batch = batches.find((b) => b._id === selectedBatch);
+          if (batch) {
+            payload.batch_id = selectedBatch;
+          }
         }
       } else {
         // Combine Excel and manual emails
         payload.emails = [...excelEmails, ...manualEmails];
       }
 
-      if (!payload.batch_id && !payload.emails) {
+      if (!payload.batch_id && !payload.emails && !payload.users_without_batches) {
         throw new Error('No valid email addresses found');
       }
 
@@ -203,11 +208,14 @@ export function EmailInvitesView() {
               label="Select Batch"
               onChange={(e) => setSelectedBatch(e.target.value)}
             >
+              <MenuItem value={NO_BATCH_SENTINEL}>
+                Users without batches
+              </MenuItem>
               {batches.map((batch) => (
                 <MenuItem 
                   key={batch._id} 
                   value={batch._id}
-                  disabled={batch.students.length === 0}
+                  disabled={selectedBatch === NO_BATCH_SENTINEL || batch.students.length === 0}
                 >
                   {batch.title} ({batch.students.length} students)
                 </MenuItem>

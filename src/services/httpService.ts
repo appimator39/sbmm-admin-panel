@@ -27,29 +27,13 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
-    const requestUrl = error.config?.url || '';
-    const isLoginRequest =
-      requestUrl.includes('/auth/login') || requestUrl.includes('/admin-permissions/login');
-
-    // Handle 401 - Unauthorized (redirect to login)
-    if (error.response?.status === 401 && !isLoginRequest) {
-      console.log('401 - redirecting to login');
+    console.log('error', error);
+    console.log('error.response', error.response);
+    if (error.response?.status === 401) {
+      console.log('401');
       localStorage.removeItem('token');
       navigateToLogin();
     }
-
-    // Handle 403 - Forbidden (show permission error)
-    if (error.response?.status === 403) {
-      const message =
-        error.response?.data?.message || 'You do not have permission to perform this action.';
-      // Dispatch a custom event that components can listen to
-      window.dispatchEvent(
-        new CustomEvent('permission-error', {
-          detail: { message },
-        })
-      );
-    }
-
     return Promise.reject(error);
   }
 );

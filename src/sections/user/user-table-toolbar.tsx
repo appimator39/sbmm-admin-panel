@@ -17,7 +17,6 @@ interface UserTableToolbarProps {
   onFilterName: (event: React.ChangeEvent<HTMLInputElement>) => void;
   searchLoading: boolean;
   onBatchFilterClick: () => void;
-  unassignedMode: boolean;
   selectedBatchIds: string[];
   batchNames: string[];
   onClearBatchFilter: () => void;
@@ -29,7 +28,6 @@ export function UserTableToolbar({
   onFilterName,
   searchLoading,
   onBatchFilterClick,
-  unassignedMode,
   selectedBatchIds,
   batchNames,
   onClearBatchFilter,
@@ -72,7 +70,7 @@ export function UserTableToolbar({
 
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
-            variant={hasActiveBatchFilter ? "contained" : "outlined"}
+            variant={hasActiveBatchFilter ? 'contained' : 'outlined'}
             color="primary"
             startIcon={<Iconify icon="mdi:filter-variant" />}
             onClick={onBatchFilterClick}
@@ -103,12 +101,12 @@ export function UserTableToolbar({
       </Stack>
 
       {/* Active Filters Row */}
-      {(hasActiveBatchFilter || unassignedMode) && (
+      {hasActiveBatchFilter && (
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
           <Typography variant="body2" color="text.secondary" sx={{ minWidth: 'fit-content' }}>
-            {unassignedMode ? 'Viewing users without batch' : 'Filtered by batches:'}
+            Filtered by batches:
           </Typography>
-          {!unassignedMode && batchNames.map((batchName, index) => (
+          {batchNames.map((batchName, index) => (
             <Chip
               key={selectedBatchIds[index]}
               label={batchName}
@@ -117,17 +115,15 @@ export function UserTableToolbar({
               color="primary"
             />
           ))}
-          {!unassignedMode && (
-            <Button
-              size="small"
-              color="error"
-              startIcon={<Iconify icon="mdi:close" />}
-              onClick={onClearBatchFilter}
-              sx={{ ml: 1 }}
-            >
-              Clear Filter
-            </Button>
-          )}
+          <Button
+            size="small"
+            color="error"
+            startIcon={<Iconify icon="mdi:close" />}
+            onClick={onClearBatchFilter}
+            sx={{ ml: 1 }}
+          >
+            Clear Filter
+          </Button>
         </Stack>
       )}
     </Stack>

@@ -1,14 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  Button,
-} from '@mui/material';
-import Divider from '@mui/material/Divider';
+import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button } from '@mui/material';
 
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -53,10 +45,10 @@ export function DashboardLayout({ sx, children, header }: DashboardLayoutProps) 
     // Clear all storage
     localStorage.clear();
     sessionStorage.clear();
-
+    
     // Close the dialog
     setLogoutDialogOpen(false);
-
+    
     // Navigate to sign-in
     navigate('/sign-in', { replace: true });
   };
@@ -95,58 +87,45 @@ export function DashboardLayout({ sx, children, header }: DashboardLayoutProps) 
                     [theme.breakpoints.up(layoutQuery)]: { display: 'none' },
                   }}
                 />
-                <NavMobile
-                  data={navData}
-                  open={navOpen}
-                  onClose={() => setNavOpen(false)}
-                  slots={{
-                    bottomArea: (
-                      <Box sx={{ mt: 2, pb: 2 }}>
-                        <Divider sx={{ mb: 2 }} />
-                        <Button
-                          fullWidth
-                          variant="outlined"
-                          color="inherit"
-                          startIcon={<Iconify icon="mdi:logout" />}
-                          onClick={handleLogoutClick}
-                        >
-                          Logout
-                        </Button>
-                      </Box>
-                    ),
-                  }}
-                />
+                <NavMobile data={navData} open={navOpen} onClose={() => setNavOpen(false)} />
               </>
             ),
-            rightArea: null,
+            rightArea: (
+              <Box gap={1} display="flex" alignItems="center">
+                <Button variant="text" color="inherit" onClick={handleLogoutClick}>
+                  Logout
+                </Button>
+
+                <Dialog
+                  open={logoutDialogOpen}
+                  onClose={handleLogoutCancel}
+                  aria-labelledby="logout-dialog-title"
+                  aria-describedby="logout-dialog-description"
+                >
+                  <DialogTitle id="logout-dialog-title">Confirm Logout</DialogTitle>
+                  <DialogContent>
+                    <DialogContentText id="logout-dialog-description">
+                      Are you sure you want to logout?
+                    </DialogContentText>
+                  </DialogContent>
+                  <DialogActions>
+                    <Button onClick={handleLogoutCancel} color="primary">
+                      Cancel
+                    </Button>
+                    <Button onClick={handleLogoutConfirm} color="primary" autoFocus>
+                      Logout
+                    </Button>
+                  </DialogActions>
+                </Dialog>
+              </Box>
+            ),
           }}
         />
       }
       /** **************************************
        * Sidebar
        *************************************** */
-      sidebarSection={
-        <NavDesktop
-          data={navData}
-          layoutQuery={layoutQuery}
-          slots={{
-            bottomArea: (
-              <Box sx={{ mt: 2, pb: 2 }}>
-                <Divider sx={{ mb: 2 }} />
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  color="inherit"
-                  startIcon={<Iconify icon="mdi:logout" />}
-                  onClick={handleLogoutClick}
-                >
-                  Logout
-                </Button>
-              </Box>
-            ),
-          }}
-        />
-      }
+      sidebarSection={<NavDesktop data={navData} layoutQuery={layoutQuery} />}
       /** **************************************
        * Footer
        *************************************** */
@@ -156,7 +135,7 @@ export function DashboardLayout({ sx, children, header }: DashboardLayoutProps) 
        *************************************** */
       cssVars={{
         '--layout-nav-vertical-width': '300px',
-        '--layout-dashboard-content-pt': theme.spacing(0.5),
+        '--layout-dashboard-content-pt': theme.spacing(1),
         '--layout-dashboard-content-pb': theme.spacing(8),
         '--layout-dashboard-content-px': theme.spacing(5),
       }}
@@ -170,28 +149,6 @@ export function DashboardLayout({ sx, children, header }: DashboardLayoutProps) 
       }}
     >
       <Main>{children}</Main>
-
-      <Dialog
-        open={logoutDialogOpen}
-        onClose={handleLogoutCancel}
-        aria-labelledby="logout-dialog-title"
-        aria-describedby="logout-dialog-description"
-      >
-        <DialogTitle id="logout-dialog-title">Confirm Logout</DialogTitle>
-        <DialogContent>
-          <DialogContentText id="logout-dialog-description">
-            Are you sure you want to logout?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleLogoutCancel} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleLogoutConfirm} color="primary" autoFocus>
-            Logout
-          </Button>
-        </DialogActions>
-      </Dialog>
     </LayoutSection>
   );
 }

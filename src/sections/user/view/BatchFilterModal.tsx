@@ -14,21 +14,17 @@ import {
   CircularProgress,
   Alert,
   IconButton,
-  FormControlLabel,
-  Switch,
-  Divider,
-  Chip,
 } from '@mui/material';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import { Iconify } from 'src/components/iconify';
 import { useBatches } from 'src/hooks/use-batches';
 
 interface BatchFilterModalProps {
   open: boolean;
   onClose: () => void;
-  onApplyFilter: (batchIds: string[]) => void;
+  onApplyFilter: (batchIds: string[], noBatchOnly: boolean) => void;
   selectedBatchIds: string[];
-  unassignedMode: boolean;
-  onApplyUnassignedMode: (enabled: boolean) => Promise<void> | void;
+  noBatchOnly: boolean;
 }
 
 export function BatchFilterModal({
@@ -36,20 +32,19 @@ export function BatchFilterModal({
   onClose,
   onApplyFilter,
   selectedBatchIds,
-  unassignedMode,
-  onApplyUnassignedMode,
+  noBatchOnly,
 }: BatchFilterModalProps) {
   const [selectedBatches, setSelectedBatches] = useState<string[]>(selectedBatchIds);
-  const [unassigned, setUnassigned] = useState<boolean>(unassignedMode);
+  const [noBatch, setNoBatch] = useState<boolean>(noBatchOnly);
   const { batches, loading, error, fetchBatches } = useBatches(0, 100); // Fetch up to 100 batches
 
   useEffect(() => {
     if (open) {
       fetchBatches();
       setSelectedBatches(selectedBatchIds);
-      setUnassigned(unassignedMode);
+      setNoBatch(noBatchOnly);
     }
-  }, [open, selectedBatchIds, unassignedMode, fetchBatches]);
+  }, [open, selectedBatchIds, noBatchOnly, fetchBatches]);
 
   const handleToggleBatch = (batchId: string) => {
     setSelectedBatches((prev) =>
@@ -58,19 +53,14 @@ export function BatchFilterModal({
   };
 
   const handleApplyFilter = () => {
-    if (unassigned) {
-      onApplyFilter([]);
-      onApplyUnassignedMode(true);
-    } else {
-      onApplyUnassignedMode(false);
-      onApplyFilter(selectedBatches);
-    }
+    onApplyFilter(selectedBatches, noBatch);
     onClose();
   };
 
   const handleClearFilter = () => {
     setSelectedBatches([]);
-    onApplyFilter([]);
+    setNoBatch(false);
+    onApplyFilter([], false);
     onClose();
   };
 
@@ -78,58 +68,34 @@ export function BatchFilterModal({
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
         <Box display="flex" alignItems="center" justifyContent="space-between">
-          <Box display="flex" alignItems="center" gap={1}>
-            <Iconify icon="mdi:filter-variant" />
-            <Typography variant="h6">Filter Users</Typography>
-            <Chip label={selectedBatches.length} size="small" sx={{ ml: 1 }} />
-          </Box>
+          <Typography variant="h6">Filter by Batches</Typography>
           <IconButton onClick={onClose}>
             <Iconify icon="mdi:close" />
           </IconButton>
         </Box>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          Select batches or enable Other Users to view users without batch.
-        </Typography>
       </DialogTitle>
 
       <DialogContent>
-        <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+        <Box display="flex" alignItems="center" mb={2}>
           <FormControlLabel
-            control={
-              <Switch checked={unassigned} onChange={(e) => setUnassigned(e.target.checked)} />
-            }
-            label="Other Users (no batch)"
+            control={<Checkbox checked={noBatch} onChange={(e) => setNoBatch(e.target.checked)} />}
+            label="Only users without any batch"
           />
         </Box>
-        <Divider sx={{ mb: 2 }} />
         {loading ? (
           <Box display="flex" justifyContent="center" p={3}>
             <CircularProgress />
           </Box>
         ) : error ? (
-          /permission|forbidden/i.test(error) ? (
-            <Box display="flex" alignItems="center" gap={1} sx={{ mb: 2 }}>
-              <Iconify icon="mdi:shield-off-outline" />
-              <Typography variant="body2" color="text.secondary">
-                You don&apos;t have access to view batches. You can still enable Other Users.
-              </Typography>
-            </Box>
-          ) : (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
         ) : batches.length === 0 ? (
           <Typography color="text.secondary" align="center">
             No batches available
           </Typography>
         ) : (
-          <List
-            sx={{
-              opacity: unassigned ? 0.5 : 1,
-              pointerEvents: unassigned ? ('none' as any) : 'auto',
-            }}
-          >
+          <List>
             {batches.map((batch) => (
               <ListItem
                 key={batch._id}
@@ -144,6 +110,7 @@ export function BatchFilterModal({
                   edge="start"
                   checked={selectedBatches.includes(batch._id)}
                   onChange={() => handleToggleBatch(batch._id)}
+                  disabled={noBatch}
                 />
                 <ListItemText primary={batch.title} secondary={batch.description} />
               </ListItem>
@@ -153,15 +120,9 @@ export function BatchFilterModal({
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={handleClearFilter} startIcon={<Iconify icon="mdi:filter-off-outline" />}>
-          Clear
-        </Button>
-        <Button
-          onClick={handleApplyFilter}
-          variant="contained"
-          startIcon={<Iconify icon="mdi:check-bold" />}
-        >
-          Apply
+        <Button onClick={handleClearFilter}>Clear Filter</Button>
+        <Button onClick={handleApplyFilter} variant="contained">
+          Apply Filter
         </Button>
       </DialogActions>
     </Dialog>

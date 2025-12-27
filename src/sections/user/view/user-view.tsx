@@ -112,6 +112,7 @@ function useDebounce<T extends (...args: any[]) => any>(
 export function UserView() {
   const table = useTable();
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
+  const [noBatchOnly, setNoBatchOnly] = useState(false);
 
   // Use selectedBatchIds directly - no need for memoization
   const {
@@ -135,10 +136,7 @@ export function UserView() {
     setUsers,
     setTotal,
     setError,
-    unassignedMode,
-    enableUnassignedMode,
-    disableUnassignedMode,
-  } = useUsers(table.page, table.rowsPerPage, selectedBatchIds);
+  } = useUsers(table.page, table.rowsPerPage, selectedBatchIds, noBatchOnly);
 
   const { batches } = useBatches(0, 100); // Get batches for name mapping
 
@@ -187,6 +185,11 @@ export function UserView() {
 
   const handleClearBatchFilter = () => {
     setSelectedBatchIds([]);
+    table.onResetPage();
+  };
+
+  const handleToggleNoBatch = async (checked: boolean) => {
+    setNoBatchOnly(checked);
     table.onResetPage();
   };
 
@@ -403,7 +406,6 @@ export function UserView() {
           onFilterName={handleFilterName}
           searchLoading={searchLoading}
           onBatchFilterClick={handleOpenBatchFilter}
-          unassignedMode={unassignedMode}
           selectedBatchIds={selectedBatchIds}
           batchNames={selectedBatchNames}
           onClearBatchFilter={handleClearBatchFilter}
@@ -433,6 +435,7 @@ export function UserView() {
                     { id: 'name', label: 'Name' },
                     { id: 'email', label: 'Email' },
                     { id: 'batches', label: 'Batch' },
+                    { id: 'progress', label: 'Progress' },
                     { id: 'isVerified', label: 'Verified', align: 'center' },
                     { id: 'isAccountActive', label: 'Status' },
                     { id: '' },
@@ -482,21 +485,12 @@ export function UserView() {
       <BatchFilterModal
         open={openBatchFilter}
         onClose={handleCloseBatchFilter}
-        onApplyFilter={handleApplyBatchFilter}
-        selectedBatchIds={selectedBatchIds}
-        unassignedMode={unassignedMode}
-        onApplyUnassignedMode={async (enabled: boolean) => {
-          cancelSearch();
-          setFilterName('');
-          setSearchQuery('');
-          if (enabled) {
-            setSelectedBatchIds([]);
-            await enableUnassignedMode();
-          } else {
-            await disableUnassignedMode();
-          }
-          table.onResetPage();
+        onApplyFilter={(batchIds, noBatch) => {
+          handleApplyBatchFilter(batchIds);
+          handleToggleNoBatch(noBatch);
         }}
+        selectedBatchIds={selectedBatchIds}
+        noBatchOnly={noBatchOnly}
       />
 
       <BulkHardwareResetModal
@@ -516,7 +510,7 @@ export function UserView() {
 
 // ----------------------------------------------------------------------
 
-export function useTable() {
+function useTable() {
   const [page, setPage] = useState(0);
   const [orderBy, setOrderBy] = useState('name');
   const [rowsPerPage, setRowsPerPage] = useState(25);

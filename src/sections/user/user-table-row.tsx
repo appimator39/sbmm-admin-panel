@@ -6,6 +6,7 @@ import Box from '@mui/material/Box';
 import Checkbox from '@mui/material/Checkbox';
 import CircularProgress from '@mui/material/CircularProgress';
 import IconButton from '@mui/material/IconButton';
+import Button from '@mui/material/Button';
 import MenuItem, { menuItemClasses } from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import Popover from '@mui/material/Popover';
@@ -16,6 +17,8 @@ import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 import { ViewCnicModal } from './view/ViewCnicModal';
 import { EditUserModal } from './view/EditUserModal';
+import { ManagePermissionsModal } from './view/ManagePermissionsModal';
+import { UserProgressModal } from './view/UserProgressModal';
 
 // ----------------------------------------------------------------------
 
@@ -79,6 +82,8 @@ export function UserTableRow({
   const [userStatus, setUserStatus] = useState(row.status);
   const [openCnicModal, setOpenCnicModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
+  const [openManagePermissions, setOpenManagePermissions] = useState(false);
+  const [openProgressModal, setOpenProgressModal] = useState(false);
 
   const handleOpenPopover = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     setOpenPopover(event.currentTarget);
@@ -174,6 +179,16 @@ export function UserTableRow({
 
         <TableCell>{row.batch && row.batch.trim() !== '' ? row.batch : '--'}</TableCell>
 
+        <TableCell>
+          <Button
+            size="small"
+            onClick={() => setOpenProgressModal(true)}
+            startIcon={<Iconify icon="mdi:chart-bar" />}
+          >
+            Progress
+          </Button>
+        </TableCell>
+
         <TableCell align="center">
           {row.idVerified ? (
             <Iconify width={22} icon="solar:check-circle-bold" sx={{ color: 'success.main' }} />
@@ -216,6 +231,15 @@ export function UserTableRow({
             },
           }}
         >
+          <MenuItem
+            onClick={() => {
+              setOpenManagePermissions(true);
+              handleClosePopover();
+            }}
+          >
+            <Iconify icon="mdi:shield-account" />
+            Permissions
+          </MenuItem>
           <MenuItem
             onClick={() => {
               setOpenEditModal(true);
@@ -310,6 +334,21 @@ export function UserTableRow({
         user={row}
         onUpdate={handleUpdateUser}
         loading={updateUserLoading}
+      />
+
+      <ManagePermissionsModal
+        open={openManagePermissions}
+        onClose={() => setOpenManagePermissions(false)}
+        userId={row.id}
+        currentRole={row.role as any}
+        currentPermissions={row.permissions || []}
+      />
+
+      <UserProgressModal
+        open={openProgressModal}
+        onClose={() => setOpenProgressModal(false)}
+        userId={row.id}
+        userName={row.name}
       />
     </>
   );

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 import httpService from 'src/services/httpService';
 import { getRandomString } from 'src/utils/random-string';
@@ -71,7 +71,12 @@ interface AssignRevokeResponse {
   data: { userId: string; permissions: string[] };
 }
 
-export const useUsers = (page: number = 0, limit: number = 25, batchIds: string[] = []) => {
+export const useUsers = (
+  page: number = 0,
+  limit: number = 25,
+  batchIds: string[] = [],
+  noBatchOnly: boolean = false
+) => {
   const [users, setUsers] = useState<User[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -84,81 +89,68 @@ export const useUsers = (page: number = 0, limit: number = 25, batchIds: string[
   const [resetHardwareError, setResetHardwareError] = useState<string | null>(null);
   const [deleteUserLoading, setDeleteUserLoading] = useState(false);
   const [deleteUserError, setDeleteUserError] = useState<string | null>(null);
-  const [unassignedMode, setUnassignedMode] = useState(false);
 
   // Use refs to track previous values and prevent infinite loops
   const prevParams = useRef<string>('');
-  const requestIdRef = useRef(0);
 
-  const loadUsers = useCallback(
-    async (pageNum: number, limitNum: number, batchIdsArr: string[]) => {
-      requestIdRef.current += 1;
-      const reqId = requestIdRef.current;
-      setLoading(true);
-      setError(null);
-      try {
-        const queryParams = new URLSearchParams({
-          page: (pageNum + 1).toString(),
-          limit: limitNum.toString(),
-        });
-
+  const loadUsers = async (
+    pageNum: number,
+    limitNum: number,
+    batchIdsArr: string[],
+    noBatch: boolean
+  ) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const queryParams = new URLSearchParams({
+        page: (pageNum + 1).toString(),
+        limit: limitNum.toString(),
+      });
+      if (!noBatch) {
         batchIdsArr.forEach((id) => {
           queryParams.append('batchIds', id);
         });
-
-        const url = unassignedMode
-          ? `/users/admin/users-without-batch?${queryParams.toString()}`
-          : `/users/admin/users?${queryParams.toString()}`;
-        let response;
-        try {
-          response = await httpService.get<UsersResponse>(url);
-        } catch (err) {
-          if (err.response?.status === 404) {
-            response = await httpService.get<UsersResponse>(`/api${url}`);
-          } else {
-            throw err;
-          }
-        }
-        if (reqId === requestIdRef.current) {
-          setUsers(response.data.data.users);
-          setTotal(response.data.data.pagination.total);
-        }
-      } catch (err) {
-        if (reqId === requestIdRef.current) {
-          setError(err.response?.data?.message || 'Failed to fetch users');
-          setUsers([]);
-          setTotal(0);
-        }
-      } finally {
-        if (reqId === requestIdRef.current) {
-          setLoading(false);
-        }
       }
-    },
-    [unassignedMode]
-  );
+
+      const endpoint = noBatch
+        ? `/users/admin/users-without-batch?${queryParams.toString()}`
+        : `/users/admin/users?${queryParams.toString()}`;
+
+      const response = await httpService.get<UsersResponse>(endpoint);
+      setUsers(response.data.data.users);
+      setTotal(response.data.data.pagination.total);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to fetch users');
+      setUsers([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Use useEffect with proper dependency tracking
   useEffect(() => {
-    const currentParams = `${page}-${limit}-${JSON.stringify(batchIds)}-${unassignedMode}`;
+    // Create a string representation of the current parameters
+    const currentParams = `${page}-${limit}-${JSON.stringify(batchIds)}-${noBatchOnly}`;
+
+    // Only fetch if parameters have actually changed
     if (currentParams !== prevParams.current) {
       prevParams.current = currentParams;
-      loadUsers(page, limit, batchIds);
+      loadUsers(page, limit, batchIds, noBatchOnly);
     }
-  }, [page, limit, batchIds, unassignedMode, loadUsers]);
+  }, [page, limit, batchIds, noBatchOnly]);
 
-  const fetchUsers = async (currentPage?: number, currentBatchIds?: string[]) => {
-    await loadUsers(currentPage ?? page, limit, currentBatchIds ?? batchIds);
-  };
-
-  const enableUnassignedMode = async () => {
-    setUnassignedMode(true);
-    await loadUsers(0, limit, []);
-  };
-
-  const disableUnassignedMode = async () => {
-    setUnassignedMode(false);
-    await loadUsers(0, limit, batchIds);
+  const fetchUsers = async (
+    currentPage?: number,
+    currentBatchIds?: string[],
+    currentNoBatchOnly?: boolean
+  ) => {
+    await loadUsers(
+      currentPage ?? page,
+      limit,
+      currentBatchIds ?? batchIds,
+      currentNoBatchOnly ?? noBatchOnly
+    );
   };
 
   const addUser = async (data: { name: string; email: string }) => {
@@ -390,9 +382,6 @@ export const useUsers = (page: number = 0, limit: number = 25, batchIds: string[
     setUsers,
     setTotal,
     setError,
-    unassignedMode,
-    enableUnassignedMode,
-    disableUnassignedMode,
     fetchPermissionsCatalog,
     assignPermissions,
     revokePermissions,

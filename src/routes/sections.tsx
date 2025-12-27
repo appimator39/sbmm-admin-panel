@@ -10,13 +10,11 @@ import { varAlpha } from 'src/theme/styles';
 import AppLaunchesView from 'src/sections/app-launches/view/AppLaunchesView';
 import ResourcesView from 'src/sections/resources/resources-view';
 import PermissionGate from 'src/components/permission-gate';
-import { PERMISSIONS } from 'src/constants/permissions';
 
 // ----------------------------------------------------------------------
 
 export const HomePage = lazy(() => import('src/pages/home'));
 export const UserPage = lazy(() => import('src/pages/user'));
-export const AdminUsersPage = lazy(() => import('src/pages/admin-users'));
 export const ProductsPage = lazy(() => import('src/pages/batches'));
 export const SignInPage = lazy(() => import('src/pages/sign-in'));
 export const Page404 = lazy(() => import('src/pages/page-not-found'));
@@ -53,115 +51,40 @@ export function Router() {
       ),
       children: [
         { element: <HomePage />, index: true },
-        {
-          path: 'user',
-          element: (
-            <PermissionGate requiredPermissions={[PERMISSIONS.MANAGE_USERS]}>
-              <UserPage />
-            </PermissionGate>
-          ),
-        },
-        {
-          path: 'admin-users',
-          element: (
-            <PermissionGate superAdminOnly>
-              <AdminUsersPage />
-            </PermissionGate>
-          ),
-        },
-        {
-          path: 'products',
-          element: (
-            <PermissionGate requiredPermissions={[PERMISSIONS.MANAGE_BATCHES]}>
-              <ProductsPage />
-            </PermissionGate>
-          ),
-        },
-        {
-          path: 'blog',
-          element: (
-            <PermissionGate
-              requiredPermissions={[
-                PERMISSIONS.COURSE_CREATE,
-                PERMISSIONS.COURSE_UPDATE,
-                PERMISSIONS.COURSE_DELETE,
-                PERMISSIONS.COURSE_TOGGLE_PUBLISH,
-              ]}
-            >
-              <CoursesView />
-            </PermissionGate>
-          ),
-        },
-        {
-          path: 'chapters',
-          element: (
-            <PermissionGate
-              requiredPermissions={[
-                PERMISSIONS.CONTENT_CREATE,
-                PERMISSIONS.CONTENT_UPDATE,
-                PERMISSIONS.CONTENT_DELETE,
-                PERMISSIONS.MANAGE_LECTURE,
-                PERMISSIONS.UPLOAD_LECTURE,
-                PERMISSIONS.UPLOAD_LECTURE_FILES,
-              ]}
-            >
-              <ChapterView />
-            </PermissionGate>
-          ),
-        },
-        {
-          path: 'resources',
-          element: (
-            <PermissionGate
-              requiredPermissions={[
-                PERMISSIONS.RESOURCES_MANAGE,
-                PERMISSIONS.RESOURCES_UPDATE_BATCHES,
-              ]}
-            >
-              <ResourcesView />
-            </PermissionGate>
-          ),
-        },
-        {
-          path: 'app-launches',
-          element: (
-            <PermissionGate superAdminOnly>
-              <AppLaunchesView />
-            </PermissionGate>
-          ),
-        },
-        {
-          path: 'email-invites',
-          element: (
-            <PermissionGate requiredPermissions={[PERMISSIONS.EMAIL_SEND]}>
-              <EmailInvitesPage />
-            </PermissionGate>
-          ),
-        },
-        {
-          path: 'quiz',
-          element: (
-            <PermissionGate requiredPermissions={[PERMISSIONS.QUIZ_MANAGE]}>
-              <QuizView />
-            </PermissionGate>
-          ),
-        },
-        {
-          path: 'urgent-notifications',
-          element: (
-            <PermissionGate requiredPermissions={[PERMISSIONS.NOTIFICATION_MANAGE]}>
-              <UrgentNotificationsPage />
-            </PermissionGate>
-          ),
-        },
-        {
-          path: 'certificates',
-          element: (
-            <PermissionGate requiredPermissions={[PERMISSIONS.CERTIFICATE_VIEW_ADMIN]}>
-              <CertificatesPage />
-            </PermissionGate>
-          ),
-        },
+        { path: 'user', element: <UserPage /> },
+        { path: 'products', element: <ProductsPage /> },
+        { path: 'blog', element: <CoursesView /> },
+        { path: 'chapters', element: (
+          <PermissionGate requiredPermissions={["content_create","content_update","content_delete","manage_lecture","upload_lecture","upload_lecture_files"]}>
+            <ChapterView />
+          </PermissionGate>
+        ) },
+        { path: 'resources', element: (
+          <PermissionGate requiredPermissions={["resources_manage","resources_update_batches"]}>
+            <ResourcesView />
+          </PermissionGate>
+        ) },
+        { path: 'app-launches', element: (
+          <PermissionGate requiredRole={["admin"]}>
+            <AppLaunchesView />
+          </PermissionGate>
+        ) },
+        { path: 'email-invites', element: (
+          <PermissionGate requiredRole={["admin"]}>
+            <EmailInvitesPage />
+          </PermissionGate>
+        ) },
+        { path: 'quiz', element: <QuizView /> },
+        { path: 'urgent-notifications', element: (
+          <PermissionGate requiredRole={["admin"]}>
+            <UrgentNotificationsPage />
+          </PermissionGate>
+        ) },
+        { path: 'certificates', element: (
+          <PermissionGate requiredPermissions={["certificate_view_admin"]}>
+            <CertificatesPage />
+          </PermissionGate>
+        ) },
       ],
     },
     {
