@@ -27,6 +27,15 @@ import { ViewCoursesModal } from './view-courses-modal';
 
 // ----------------------------------------------------------------------
 
+type BulkRemoveData = {
+  successful: Array<{ email: string; userId?: string }>;
+  skipped: Array<{ email: string; reason: string }>;
+  failed: Array<{ email: string; reason: string }>;
+  batchId: string;
+  totalStudentsInBatch: number;
+  summary: { total: number; removed: number; skipped: number; failed: number };
+};
+
 export type BatchProps = {
   id: string;
   title: string;
@@ -44,7 +53,7 @@ type BatchTableRowProps = {
   deleteLoading: boolean;
   onEnrollStudents: (batchId: string, emails: string[]) => Promise<void>;
   onAssignCourses: (batchId: string, courseId: string) => Promise<void>;
-  onRemoveStudent: (batchId: string, email: string) => Promise<void>;
+  onRemoveStudent: (batchId: string, emails: string[]) => Promise<BulkRemoveData>;
 };
 
 export default function BatchTableRow({
@@ -204,25 +213,20 @@ export default function BatchTableRow({
     }
   };
 
-  const handleRemoveStudent = async (data: { email: string }) => {
+  const handleRemoveStudent = async (data: { emails: string[] }): Promise<BulkRemoveData> => {
     setRemoveLoading(true);
     setRemoveError(null);
     try {
-      await onRemoveStudent(id, data.email);
-      setSnackbar({
-        open: true,
-        message: 'Student removed successfully',
-        severity: 'success',
-      });
-      handleCloseRemoveModal();
+      const result = await onRemoveStudent(id, data.emails);
+      const { summary } = result;
+      const message = `Removed: ${summary.removed}, Skipped: ${summary.skipped}, Failed: ${summary.failed}`;
+      setSnackbar({ open: true, message, severity: summary.failed > 0 ? 'error' : 'success' });
+      return result;
     } catch (error) {
-      const errorMessage = error.message || 'Failed to remove student';
+      const errorMessage = error.message || 'Failed to remove students';
       setRemoveError(errorMessage);
-      setSnackbar({
-        open: true,
-        message: errorMessage,
-        severity: 'error',
-      });
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+      throw error;
     } finally {
       setRemoveLoading(false);
     }
@@ -273,7 +277,7 @@ export default function BatchTableRow({
 
             <MenuItem onClick={handleOpenRemoveModal}>
               <Iconify icon="mdi:account-remove" sx={{ mr: 2 }} />
-              Remove Student
+              Remove Students
             </MenuItem>
 
             <MenuItem onClick={handleOpenAssignModal}>

@@ -89,6 +89,32 @@ interface RemoveStudentResponse {
   message: string;
   data: Batch;
 }
+interface BulkRemoveResponse {
+  statusCode: number;
+  message: string;
+  data: {
+    successful: Array<{
+      email: string;
+      userId?: string;
+    }>;
+    skipped: Array<{
+      email: string;
+      reason: string;
+    }>;
+    failed: Array<{
+      email: string;
+      reason: string;
+    }>;
+    batchId: string;
+    totalStudentsInBatch: number;
+    summary: {
+      total: number;
+      removed: number;
+      skipped: number;
+      failed: number;
+    };
+  };
+}
 
 export const useBatches = (page: number, limit: number) => {
   const [batches, setBatches] = useState<Batch[]>([]);
@@ -214,6 +240,24 @@ export const useBatches = (page: number, limit: number) => {
     }
   };
 
+  const bulkRemoveStudents = async (
+    batchId: string,
+    emails: string[]
+  ): Promise<BulkRemoveResponse['data']> => {
+    try {
+      const response = await httpService.post<BulkRemoveResponse>(
+        '/users/admin/bulk-remove-students',
+        {
+          emails,
+          batchId,
+        }
+      );
+      return response.data.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || 'Failed to bulk remove students');
+    }
+  };
+
   return {
     batches,
     total,
@@ -229,5 +273,6 @@ export const useBatches = (page: number, limit: number) => {
     enrollStudents,
     assignCourses,
     removeStudent,
+    bulkRemoveStudents,
   };
 };

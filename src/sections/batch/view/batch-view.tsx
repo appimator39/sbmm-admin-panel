@@ -57,6 +57,7 @@ export function BatchView() {
     enrollStudents,
     assignCourses,
     removeStudent,
+    bulkRemoveStudents,
   } = useBatches(page, rowsPerPage);
 
   const { searchUsers } = useUsers(0, 25);
@@ -98,9 +99,20 @@ export function BatchView() {
     return users.map((user) => ({ email: user.email }));
   };
 
-  const handleRemoveStudent = async (batchId: string, email: string) => {
-    await removeStudent(batchId, email);
+  const handleRemoveStudent = async (
+    batchId: string,
+    emails: string[]
+  ): Promise<{
+    successful: Array<{ email: string; userId?: string }>;
+    skipped: Array<{ email: string; reason: string }>;
+    failed: Array<{ email: string; reason: string }>;
+    batchId: string;
+    totalStudentsInBatch: number;
+    summary: { total: number; removed: number; skipped: number; failed: number };
+  }> => {
+    const result = await bulkRemoveStudents(batchId, emails);
     await fetchBatches(page);
+    return result;
   };
 
   const handleSort = useCallback(
