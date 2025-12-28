@@ -4,6 +4,6 @@ const MODE = ENV.MODE as string | undefined;
 
 export const BASE_URL =
   VITE_HOST ||
-  (MODE === 'production' ? 'https://portal.sbmm.com.pk' : 'http://localhost:3030');
+  (MODE === 'production' ? 'https://portal.sbmm.com.pk' : 'https://portal.sbmm.com.pk');
 
 export const LOGIN_URL = `${BASE_URL}/auth/login`;
