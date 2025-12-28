@@ -18,6 +18,7 @@ import {
   LinearProgress,
   Chip,
 } from '@mui/material';
+import dayjs from 'dayjs';
 import httpService from 'src/services/httpService';
 import { Scrollbar } from 'src/components/scrollbar';
 import { LectureProgressModal } from './LectureProgressModal';
@@ -60,6 +61,11 @@ export function UserProgressModal({ open, onClose, userId, userName }: UserProgr
   const [openLectureModal, setOpenLectureModal] = useState(false);
   const [selectedLectureId, setSelectedLectureId] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [openSeeksModal, setOpenSeeksModal] = useState(false);
+  const [selectedSeeks, setSelectedSeeks] = useState<
+    Array<{ fromSec: number; toSec: number | null; at: string }>
+  >([]);
+  const [selectedSeeksTitle, setSelectedSeeksTitle] = useState<string>('');
 
   useEffect(() => {
     const fetchAllSummary = async () => {
@@ -206,6 +212,14 @@ export function UserProgressModal({ open, onClose, userId, userName }: UserProgr
                               <Chip
                                 label={typeof lec.seekCount === 'number' ? lec.seekCount : 0}
                                 size="small"
+                                clickable={Boolean(lec.seekCount)}
+                                onClick={() => {
+                                  const events = lec.skipEvents || [];
+                                  if (events.length === 0) return;
+                                  setSelectedSeeks(events);
+                                  setSelectedSeeksTitle(lec.title);
+                                  setOpenSeeksModal(true);
+                                }}
                               />
                             </TableCell>
                             <TableCell align="center">{toTime(lec.lastPositionSec)}</TableCell>
@@ -234,6 +248,54 @@ export function UserProgressModal({ open, onClose, userId, userName }: UserProgr
           lectureId={selectedLectureId}
         />
       )}
+
+      <Dialog
+        open={openSeeksModal}
+        onClose={() => setOpenSeeksModal(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center" justifyContent="space-between">
+            <Typography variant="h6">Seeks</Typography>
+          </Box>
+          <Typography variant="body2" color="text.secondary">
+            {selectedSeeksTitle}
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>From</TableCell>
+                  <TableCell>To</TableCell>
+                  <TableCell>At</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {selectedSeeks.map((ev, idx) => (
+                  <TableRow key={`${ev.at}-${idx}`}>
+                    <TableCell>{toTime(ev.fromSec)}</TableCell>
+                    <TableCell>{typeof ev.toSec === 'number' ? toTime(ev.toSec) : '--'}</TableCell>
+                    <TableCell>{dayjs(ev.at).format('YYYY-MM-DD HH:mm')}</TableCell>
+                  </TableRow>
+                ))}
+                {selectedSeeks.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={3}>
+                      <Typography color="text.secondary">No seeks</Typography>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenSeeksModal(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Dialog>
   );
 }
