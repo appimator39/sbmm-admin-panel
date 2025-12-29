@@ -1,9 +1,7 @@
-const ENV = (import.meta as any)?.env || {};
-const VITE_HOST = ENV.VITE_HOST_API as string | undefined;
-const MODE = ENV.MODE as string | undefined;
+const VITE_HOST = import.meta.env.VITE_HOST_API as string | undefined;
+const IS_PROD = import.meta.env.PROD;
 
 export const BASE_URL =
-  VITE_HOST ||
-  (MODE === 'production' ? 'https://portal.sbmm.com.pk' : 'https://e414e0659c5e.ngrok-free.app');
+  VITE_HOST || (IS_PROD ? 'https://portal.sbmm.com.pk' : 'https://portal.sbmm.com.pk');
 
 export const LOGIN_URL = `${BASE_URL}/auth/login`;
