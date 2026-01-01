@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 
 import {
@@ -8,6 +8,10 @@ import {
   TextField,
   Typography,
   Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Tabs,
   Tab,
   FormControl,
@@ -20,24 +24,34 @@ import {
   Chip,
   InputAdornment,
   IconButton,
+  Divider,
 } from '@mui/material';
 import { Iconify } from 'src/components/iconify';
 import { useBatches } from 'src/hooks/use-batches';
 import { DashboardContent } from 'src/layouts/dashboard';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import { html as htmlLang } from '@codemirror/lang-html';
+import { oneDark } from '@codemirror/theme-one-dark';
+import CodeMirror from '@uiw/react-codemirror';
 import httpService from 'src/services/httpService';
 
 export function EmailInvitesView() {
   const NO_BATCH_SENTINEL = '__USERS_WITHOUT_BATCHES__';
+
+  // Recipients state
   const [selectedTab, setSelectedTab] = useState(0);
   const [selectedBatch, setSelectedBatch] = useState('');
   const [fileError, setFileError] = useState<string | null>(null);
-  const [subject, setSubject] = useState('');
-  const [body, setBody] = useState('');
   const [excelEmails, setExcelEmails] = useState<string[]>([]);
   const [manualEmails, setManualEmails] = useState<string[]>([]);
+  const [newEmail, setNewEmail] = useState('');
+
+  // Email content state
+  const [subject, setSubject] = useState('');
+  const [htmlContent, setHtmlContent] = useState('');
+
+  // UI state
   const [loading, setLoading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -47,9 +61,39 @@ export function EmailInvitesView() {
     message: '',
     severity: 'success',
   });
-  const [newEmail, setNewEmail] = useState('');
 
-  const { batches, fetchBatches } = useBatches(0, 100);
+  const { batches } = useBatches(0, 100);
+
+  const isContentEmpty = (content: string) => content.trim().length === 0;
+
+  // Generate preview HTML - use as-is if full doc, otherwise wrap
+  const previewHtmlString = useMemo(() => {
+    if (!previewOpen) return '';
+    const trimmed = htmlContent.trim();
+    if (!trimmed) return '';
+
+    const isFullDoc = /^<!DOCTYPE|^<html|^<head/im.test(trimmed);
+    if (isFullDoc) return trimmed;
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      padding: 20px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+${trimmed}
+</body>
+</html>`;
+  }, [previewOpen, htmlContent]);
 
   const handleCloseSnackbar = () => {
     setSnackbar((prev) => ({ ...prev, open: false }));
@@ -63,66 +107,54 @@ export function EmailInvitesView() {
     const reader = new FileReader();
 
     if (file.name.toLowerCase().endsWith('.csv')) {
-      // Handle CSV file
       reader.readAsText(file);
       reader.onload = (e) => {
         try {
           const csvData = e.target?.result as string;
-          // Split by newlines and filter out empty lines
-          const rows = csvData.split('\n').filter(row => row.trim());
-          
-          // Process each row
-          const emails = rows.map(row => {
-            // Split by semicolon and get the email field (index 3)
-            const fields = row.split(';').map(field => 
-              field.replace(/^"|"$/g, '').trim()
-            );
-            return fields[3] || ''; // Email is at index 3
-          }).filter(email => email && email.includes('@'));
+          const rows = csvData.split('\n').filter((row) => row.trim());
+          const emails = rows
+            .map((row) => {
+              const fields = row.split(';').map((field) => field.replace(/^"|"$/g, '').trim());
+              return fields[3] || '';
+            })
+            .filter((email) => email && email.includes('@'));
 
           if (emails.length === 0) {
             setFileError('No valid email addresses found in the CSV file.');
             return;
           }
-
           setExcelEmails(emails);
         } catch (err) {
           setFileError('Error processing the CSV file. Please check the file format.');
-          console.error('Error processing CSV file:', err);
         }
       };
     } else {
-      // Handle Excel file
       reader.readAsBinaryString(file);
       reader.onload = (e) => {
         try {
           const data = e.target?.result;
-          const workbook = XLSX.read(data, { type: "binary" });
+          const workbook = XLSX.read(data, { type: 'binary' });
           const sheetName = workbook.SheetNames[0];
           const sheet = workbook.Sheets[sheetName];
           const parsedData = XLSX.utils.sheet_to_json(sheet);
-
-          // Extract emails from the Excel file
           const emails = parsedData
-            .map((row: any) => row["Personal Email"] || row.Email || row.email)
+            .map((row: any) => row['Personal Email'] || row.Email || row.email)
             .filter((email: string) => email && email.includes('@'));
 
           if (emails.length === 0) {
             setFileError('No valid email addresses found in the Excel file.');
             return;
           }
-
           setExcelEmails(emails);
         } catch (err) {
           setFileError('Error processing the Excel file. Please check the file format.');
-          console.error('Error processing Excel file:', err);
         }
       };
     }
   };
 
   const handleSubmit = async () => {
-    if (!subject.trim() || !body.trim()) return;
+    if (!subject.trim() || isContentEmpty(htmlContent)) return;
 
     setLoading(true);
 
@@ -135,7 +167,7 @@ export function EmailInvitesView() {
         users_without_batches?: boolean;
       } = {
         subject: subject.trim(),
-        description: body.trim(),
+        description: htmlContent.trim(),
       };
 
       if (selectedTab === 0) {
@@ -148,7 +180,6 @@ export function EmailInvitesView() {
           }
         }
       } else {
-        // Combine Excel and manual emails
         payload.emails = [...excelEmails, ...manualEmails];
       }
 
@@ -164,13 +195,12 @@ export function EmailInvitesView() {
         severity: 'success',
       });
 
-      // Reset form
       setSubject('');
-      setBody('');
+      setHtmlContent('');
       setExcelEmails([]);
       setManualEmails([]);
       setSelectedBatch('');
-    } catch (err) {
+    } catch (err: any) {
       const errorMessage = err.response?.data?.message || 'Failed to send emails';
       setSnackbar({
         open: true,
@@ -182,15 +212,22 @@ export function EmailInvitesView() {
     }
   };
 
+  const canPreview = subject.trim().length > 0 || !isContentEmpty(htmlContent);
+  const canSend =
+    !loading &&
+    subject.trim().length > 0 &&
+    !isContentEmpty(htmlContent) &&
+    ((selectedTab === 0 && selectedBatch) ||
+      (selectedTab === 1 && (excelEmails.length > 0 || manualEmails.length > 0)));
+
   return (
     <DashboardContent>
       <Box display="flex" alignItems="center" mb={5}>
-        <Typography variant="h4">
-          Send Email Invitations
-        </Typography>
+        <Typography variant="h4">Send Email Invitations</Typography>
       </Box>
 
       <Card sx={{ p: 3 }}>
+        {/* Recipients Selection */}
         <Tabs
           value={selectedTab}
           onChange={(_, newValue) => setSelectedTab(newValue)}
@@ -201,29 +238,23 @@ export function EmailInvitesView() {
         </Tabs>
 
         {selectedTab === 0 ? (
-          <FormControl fullWidth sx={{ mb: 2 }}>
+          <FormControl fullWidth sx={{ mb: 3 }}>
             <InputLabel>Select Batch</InputLabel>
             <Select
               value={selectedBatch}
               label="Select Batch"
               onChange={(e) => setSelectedBatch(e.target.value)}
             >
-              <MenuItem value={NO_BATCH_SENTINEL}>
-                Users without batches
-              </MenuItem>
+              <MenuItem value={NO_BATCH_SENTINEL}>Users without batches</MenuItem>
               {batches.map((batch) => (
-                <MenuItem 
-                  key={batch._id} 
-                  value={batch._id}
-                  disabled={selectedBatch === NO_BATCH_SENTINEL || batch.students.length === 0}
-                >
+                <MenuItem key={batch._id} value={batch._id} disabled={batch.students.length === 0}>
                   {batch.title} ({batch.students.length} students)
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
         ) : (
-          <Box sx={{ mb: 2 }}>
+          <Box sx={{ mb: 3 }}>
             <input
               accept=".xlsx,.xls,.csv"
               style={{ display: 'none' }}
@@ -254,12 +285,7 @@ export function EmailInvitesView() {
                 </Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                   {excelEmails.map((email, index) => (
-                    <Chip
-                      key={index}
-                      label={email}
-                      color="primary"
-                      variant="outlined"
-                    />
+                    <Chip key={index} label={email} color="primary" variant="outlined" />
                   ))}
                 </Box>
               </Box>
@@ -319,45 +345,139 @@ export function EmailInvitesView() {
           </Box>
         )}
 
+        <Divider sx={{ my: 3 }} />
+
+        {/* Email Subject */}
         <TextField
           fullWidth
           label="Subject"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
-          sx={{ mb: 2 }}
+          sx={{ mb: 3 }}
           required
         />
 
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Email Body
-        </Typography>
-        <Box sx={{ height: 300, mb: 3 }}>
-          <ReactQuill
-            theme="snow"
-            value={body}
-            onChange={setBody}
-            style={{ height: 250 }}
-          />
+        {/* Email Body - HTML Editor */}
+        <Box sx={{ mb: 3 }}>
+          <Box
+            sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}
+          >
+            <Typography variant="subtitle1" fontWeight="bold">
+              Email Body (HTML)
+            </Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              color="info"
+              onClick={() => setPreviewOpen(true)}
+              startIcon={<Iconify icon="mdi:eye" />}
+              disabled={!canPreview}
+            >
+              Preview
+            </Button>
+          </Box>
+
+          <Box
+            sx={{
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1,
+              overflow: 'hidden',
+            }}
+          >
+            <CodeMirror
+              value={htmlContent}
+              height="450px"
+              theme={oneDark}
+              extensions={[htmlLang()]}
+              onChange={(value) => setHtmlContent(value)}
+              placeholder="Paste your HTML email template here..."
+            />
+          </Box>
         </Box>
 
+        {/* Action Buttons */}
         <Stack direction="row" spacing={2} justifyContent="flex-end">
           <Button
             onClick={handleSubmit}
             variant="contained"
-            disabled={
-              loading ||
-              !subject.trim() ||
-              !body.trim() ||
-              (selectedTab === 0 && !selectedBatch) ||
-              (selectedTab === 1 && excelEmails.length === 0 && manualEmails.length === 0)
+            size="large"
+            disabled={!canSend}
+            startIcon={
+              loading ? <CircularProgress size={20} color="inherit" /> : <Iconify icon="mdi:send" />
             }
-            startIcon={loading && <CircularProgress size={20} />}
           >
             Send Emails
           </Button>
         </Stack>
       </Card>
 
+      {/* Preview Modal */}
+      <Dialog
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: { minHeight: '80vh' },
+        }}
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center" justifyContent="space-between">
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Iconify icon="mdi:email-open" width={24} />
+              <Typography variant="h6">Email Preview</Typography>
+            </Stack>
+            <IconButton onClick={() => setPreviewOpen(false)} size="small">
+              <Iconify icon="mdi:close" />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers sx={{ p: 0 }}>
+          <Box sx={{ p: 2, bgcolor: 'grey.100' }}>
+            <Typography variant="caption" color="text.secondary">
+              SUBJECT
+            </Typography>
+            <Typography variant="h6" sx={{ mt: 0.5 }}>
+              {subject || '(No subject)'}
+            </Typography>
+          </Box>
+          <Divider />
+          <Box sx={{ height: 'calc(80vh - 200px)', overflow: 'hidden', bgcolor: '#f5f5f5' }}>
+            <iframe
+              title="email-preview"
+              srcDoc={previewHtmlString}
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                display: 'block',
+                backgroundColor: 'white',
+              }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, justifyContent: 'space-between' }}>
+          <Button
+            onClick={() => {
+              const newWindow = window.open('', '_blank');
+              if (newWindow) {
+                newWindow.document.write(previewHtmlString);
+                newWindow.document.close();
+              }
+            }}
+            variant="text"
+            startIcon={<Iconify icon="mdi:open-in-new" />}
+          >
+            Open in New Tab
+          </Button>
+          <Button onClick={() => setPreviewOpen(false)} variant="outlined">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
@@ -381,4 +501,4 @@ export function EmailInvitesView() {
       </Snackbar>
     </DashboardContent>
   );
-} 
+}
