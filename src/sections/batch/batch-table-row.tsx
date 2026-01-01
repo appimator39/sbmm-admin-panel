@@ -22,6 +22,7 @@ import { fDate } from 'src/utils/format-time';
 
 import { AssignCoursesModal } from './view/AssignCoursesModal';
 import { EnrollStudentsModal } from './view/EnrollStudentsModal';
+import { ExportStudentsModal } from './view/ExportStudentsModal';
 import { RemoveStudentModal } from './view/RemoveStudentModal';
 import { ViewCoursesModal } from './view-courses-modal';
 
@@ -74,6 +75,7 @@ export default function BatchTableRow({
   const [openAssignModal, setOpenAssignModal] = useState(false);
   const [openRemoveModal, setOpenRemoveModal] = useState(false);
   const [openViewCoursesModal, setOpenViewCoursesModal] = useState(false);
+  const [openExportModal, setOpenExportModal] = useState(false);
   const [enrollLoading, setEnrollLoading] = useState(false);
   const [assignLoading, setAssignLoading] = useState(false);
   const [removeLoading, setRemoveLoading] = useState(false);
@@ -144,6 +146,15 @@ export default function BatchTableRow({
 
   const handleCloseViewCoursesModal = () => {
     setOpenViewCoursesModal(false);
+  };
+
+  const handleOpenExportModal = () => {
+    handleMenuClose();
+    setOpenExportModal(true);
+  };
+
+  const handleCloseExportModal = () => {
+    setOpenExportModal(false);
   };
 
   const handleCloseSnackbar = () => {
@@ -290,6 +301,11 @@ export default function BatchTableRow({
               View Courses
             </MenuItem>
 
+            <MenuItem onClick={handleOpenExportModal} disabled={students.length === 0}>
+              <Iconify icon="mdi:download" sx={{ mr: 2 }} />
+              Export Emails
+            </MenuItem>
+
             <MenuItem onClick={handleOpenConfirm} sx={{ color: 'error.main' }}>
               <Iconify icon="solar:trash-bin-trash-bold" sx={{ mr: 2 }} />
               Delete
@@ -353,6 +369,14 @@ export default function BatchTableRow({
         batchId={id}
         batchTitle={title}
         courseIds={courses}
+      />
+
+      <ExportStudentsModal
+        open={openExportModal}
+        onClose={handleCloseExportModal}
+        batchId={id}
+        batchTitle={title}
+        totalStudents={students.length}
       />
 
       <Snackbar
